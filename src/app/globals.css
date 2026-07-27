@@ -1,26 +1,79 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --navy: #16234a;
+  --navy-soft: #223468;
+  --lime: #8dc63f;
+  --lime-bright: #a6d861;
+  --paper: #f7f8f5;
+  --paper-dim: #edf1e6;
+  --rule: #d8ddd0;
+  --charcoal: #24261f;
+
+  --background: var(--paper);
+  --foreground: var(--charcoal);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --color-navy: var(--navy);
+  --color-navy-soft: var(--navy-soft);
+  --color-lime: var(--lime);
+  --color-lime-bright: var(--lime-bright);
+  --color-paper: var(--paper);
+  --color-paper-dim: var(--paper-dim);
+  --color-rule: var(--rule);
+  --color-charcoal: var(--charcoal);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+
+  --animate-panel-in: panel-in 0.6s ease-out both;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@keyframes panel-in {
+  0% {
+    opacity: 0;
+    transform: rotate(-2deg) scale(0.95);
   }
+  100% {
+    opacity: 1;
+    transform: rotate(-2deg) scale(1);
+  }
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+}
+
+/* Efeito de scroll-reveal: a classe "in" é adicionada via IntersectionObserver
+   (ver src/components/home/ScrollReveal.tsx), por isso fica fora do Tailwind. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
