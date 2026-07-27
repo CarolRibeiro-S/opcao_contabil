@@ -13,7 +13,7 @@ export default function Sobre() {
             className="object-cover"
           />
           <span className="absolute bottom-[22px] left-[22px] rounded-md bg-white/95 px-3.5 py-2.5 font-mono text-[11.5px] tracking-[0.04em] text-navy">
-            Hederson Camelo · Contador responsável
+            Hederson Camelo · Gestor responsável
           </span>
         </div>
 
