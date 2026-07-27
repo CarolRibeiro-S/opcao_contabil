@@ -43,7 +43,7 @@ export default function Sobre() {
               passar um vencimento.
             </p>
             <p>
-              Não somos uma empresa de tecnologia. Somos contadores que usam tecnologia para
+              Somos contadores que usam tecnologia para
               fazer o que sempre fizemos de melhor: cuidar do seu negócio como se fosse nosso.
             </p>
           </div>
