@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { SEGMENTOS } from '@/lib/constants/segmentos'
 import ProfissionaisEditor from '@/components/admin/ProfissionaisEditor'
 import AnexosInput from '@/components/admin/AnexosInput'
+import ComunicadosCliente from '@/components/admin/ComunicadosCliente'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -290,6 +291,21 @@ export default function EditarClienteForm({
 
         {isClinica && <ProfissionaisEditor profissionais={profissionais} onChange={setProfissionais} />}
 
+        {profissionaisIniciais.length > 0 && (
+          <div className="rounded-lg border border-rule bg-paper-dim p-4">
+            <p className="mb-2 text-sm text-navy-soft">
+              Este cliente tem profissionais cadastrados. Você pode importar a apuração mensal por
+              médico a partir da planilha do escritório.
+            </p>
+            <Link
+              href={`/admin/clientes/${cliente.id}/importar-planilha`}
+              className="inline-flex items-center gap-2 rounded-[3px] border-[1.3px] border-navy px-4 py-2 text-sm font-semibold text-navy transition-colors duration-200 hover:bg-navy hover:text-paper"
+            >
+              📊 Importar planilha de apuração
+            </Link>
+          </div>
+        )}
+
         <div>
           <label className={labelClasses}>Documentos anexados</label>
 
@@ -334,6 +350,8 @@ export default function EditarClienteForm({
           {loading ? 'Salvando...' : 'Salvar alterações'}
         </button>
       </form>
+
+      <ComunicadosCliente clienteId={cliente.id} />
     </div>
   )
 }

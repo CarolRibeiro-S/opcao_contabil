@@ -15,6 +15,7 @@ const labelClasses =
 type Cobranca = {
   id: string
   cliente_id: string | null
+  descricao: string | null
   competencia: string | null
   valor: number | null
   data_vencimento: string | null
@@ -25,6 +26,7 @@ export default function EditarCobrancaForm({ cobranca }: { cobranca: Cobranca })
   const supabase = createClient()
 
   const [clienteId, setClienteId] = useState(cobranca.cliente_id ?? '')
+  const [descricao, setDescricao] = useState(cobranca.descricao ?? '')
   const [competencia, setCompetencia] = useState(cobranca.competencia?.slice(0, 7) ?? '')
   const [valor, setValor] = useState(cobranca.valor !== null ? String(cobranca.valor) : '')
   const [dataVencimento, setDataVencimento] = useState(cobranca.data_vencimento ?? '')
@@ -41,6 +43,7 @@ export default function EditarCobrancaForm({ cobranca }: { cobranca: Cobranca })
       .from('cobrancas')
       .update({
         cliente_id: clienteId || null,
+        descricao,
         competencia: competencia ? `${competencia}-01` : null,
         valor: valor ? Number(valor) : null,
         data_vencimento: dataVencimento || null,
@@ -66,7 +69,7 @@ export default function EditarCobrancaForm({ cobranca }: { cobranca: Cobranca })
         ← Voltar
       </Link>
 
-      <h1 className="mb-8 font-display text-2xl font-semibold text-navy">Editar Cobrança</h1>
+      <h1 className="mb-8 font-display text-2xl font-semibold text-navy">Editar Honorário</h1>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
@@ -74,6 +77,21 @@ export default function EditarCobrancaForm({ cobranca }: { cobranca: Cobranca })
             Cliente
           </label>
           <SelectCliente id="cliente" value={clienteId} onChange={setClienteId} required />
+        </div>
+
+        <div>
+          <label htmlFor="descricao" className={labelClasses}>
+            Descrição
+          </label>
+          <input
+            id="descricao"
+            type="text"
+            required
+            placeholder="Ex: Honorário mensal - Julho/2026, ou Emissão de NF avulsa"
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+            className={inputClasses}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-5">

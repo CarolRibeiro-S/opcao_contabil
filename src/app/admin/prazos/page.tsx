@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import PrazosKanban from '@/components/admin/PrazosKanban'
+import PrazosView from '@/components/admin/PrazosView'
 
 type Prazo = {
   id: string
@@ -35,7 +35,7 @@ export default async function PrazosPage() {
       {!prazos || prazos.length === 0 ? (
         <p className="text-sm text-navy-soft">Nenhum prazo cadastrado ainda.</p>
       ) : (
-        <PrazosKanban prazos={prazos} />
+        <PrazosView prazos={prazos} />
       )}
     </div>
   )

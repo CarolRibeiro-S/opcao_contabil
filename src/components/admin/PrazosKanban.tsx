@@ -15,6 +15,12 @@ type Prazo = {
 const COLUNAS = [
   { status: 'pendente', titulo: 'Pendente', corBadge: 'bg-paper-dim text-navy-soft', corBorda: 'border-l-rule' },
   {
+    status: 'atencao',
+    titulo: 'Atenção',
+    corBadge: 'bg-amber-50 text-amber-700',
+    corBorda: 'border-l-amber-500',
+  },
+  {
     status: 'em_dia',
     titulo: 'Em Dia',
     corBadge: 'bg-[#eef7e0] text-[#4f8f2a]',
@@ -55,7 +61,7 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
       {COLUNAS.map((coluna, colunaIndex) => {
         const prazosDaColuna = prazos.filter((prazo) => prazo.status === coluna.status)
 

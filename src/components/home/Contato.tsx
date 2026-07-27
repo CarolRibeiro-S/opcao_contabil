@@ -1,8 +1,4 @@
-const inputClasses =
-  'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
-
-const labelClasses =
-  'mb-[7px] block font-mono text-[11px] uppercase tracking-[0.1em] text-navy-soft'
+import FormularioContato from './FormularioContato'
 
 export default function Contato() {
   return (
@@ -13,36 +9,7 @@ export default function Contato() {
           <h2 className="mt-2 font-display text-[30px] font-semibold text-navy">
             Vamos organizar sua contabilidade
           </h2>
-          <form className="mt-[30px]">
-            <div className="mb-[18px]">
-              <label htmlFor="nome" className={labelClasses}>
-                Nome
-              </label>
-              <input id="nome" type="text" placeholder="Seu nome completo" className={inputClasses} />
-            </div>
-            <div className="mb-[18px]">
-              <label htmlFor="email" className={labelClasses}>
-                E-mail
-              </label>
-              <input id="email" type="email" placeholder="seu@email.com" className={inputClasses} />
-            </div>
-            <div className="mb-[18px]">
-              <label htmlFor="msg" className={labelClasses}>
-                Mensagem
-              </label>
-              <textarea
-                id="msg"
-                placeholder="Conte um pouco sobre sua empresa"
-                className={`min-h-[90px] resize-y ${inputClasses}`}
-              />
-            </div>
-            <button
-              type="submit"
-              className="mt-2 inline-flex items-center gap-2 rounded-[3px] bg-lime px-5 py-2.5 text-sm font-semibold text-navy transition duration-200 hover:-translate-y-px hover:bg-lime-bright hover:shadow-[0_6px_16px_rgba(141,198,63,0.4)]"
-            >
-              Enviar mensagem
-            </button>
-          </form>
+          <FormularioContato />
         </div>
 
         <div className="reveal flex flex-col gap-[26px]">

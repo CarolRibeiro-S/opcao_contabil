@@ -22,7 +22,18 @@
       "Bash(curl -s -o /dev/null -w \"novo: %{http_code}\\\\n\" http://localhost:3000/admin/clientes/novo)",
       "Bash(curl -s -o /dev/null -w \"editar \\(id fake\\): %{http_code}\\\\n\" http://localhost:3000/admin/clientes/00000000-0000-0000-0000-000000000000/editar)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/ --max-time 3)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(npm install *)",
+      "Bash(curl -s -i http://localhost:3000/api/cron/prazos)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -H \"Authorization: Bearer chave-errada\" http://localhost:3000/api/cron/prazos)",
+      "Bash(curl -s -o /dev/null -w \"prazos: %{http_code}\\\\n\" http://localhost:3000/admin/prazos)",
+      "Bash(curl -s -o /dev/null -w \"prazos/novo: %{http_code}\\\\n\" http://localhost:3000/admin/prazos/novo)",
+      "Bash(curl -s -o /dev/null -w \"/admin/prazos: %{http_code}\\\\n\" http://localhost:3000/admin/prazos)",
+      "Bash(curl -s -o /dev/null -w \"importar-planilha: %{http_code}\\\\n\" http://localhost:3000/admin/clientes/00000000-0000-0000-0000-000000000000/importar-planilha)",
+      "Bash(curl -s -o /dev/null -w \"clientes/[id]/editar: %{http_code}\\\\n\" http://localhost:3000/admin/clientes/00000000-0000-0000-0000-000000000000/editar)",
+      "Bash(curl -s -i -X POST http://localhost:3000/api/importar-apuracao)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/ --max-time 8)",
+      "Bash(curl -s \"http://localhost:3000/icon.svg\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\anaca\\AppData\\Local\\Temp\\claude"

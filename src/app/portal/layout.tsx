@@ -6,13 +6,14 @@ import LogoutButton from '@/components/admin/LogoutButton'
 import logo from '../../../public/images/logo.jpg'
 
 const navLinks = [
-  { href: '/admin/clientes', label: 'Clientes', icon: '👥' },
-  { href: '/admin/tarefas', label: 'Tarefas', icon: '✓' },
-  { href: '/admin/prazos', label: 'Prazos', icon: '⏰' },
-  { href: '/admin/cobrancas', label: 'Honorários Contábeis', icon: '💰' },
+  { href: '/portal', label: 'Início', icon: '🏠' },
+  { href: '/portal/prazos', label: 'Prazos', icon: '⏰' },
+  { href: '/portal/comunicados', label: 'Comunicados', icon: '💬' },
+  { href: '/portal/documentos', label: 'Documentos', icon: '📄' },
+  { href: '/portal/cobrancas', label: 'Honorários Contábeis', icon: '💰' },
 ]
 
-export default async function AdminLayout({
+export default async function PortalLayout({
   children,
 }: {
   children: React.ReactNode
@@ -33,9 +34,15 @@ export default async function AdminLayout({
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') {
-    redirect('/portal')
+  if (profile?.role === 'admin') {
+    redirect('/admin')
   }
+
+  const { data: cliente } = await supabase
+    .from('clientes')
+    .select('nome_empresa')
+    .eq('profile_id', user.id)
+    .single()
 
   return (
     <div className="flex min-h-screen bg-paper">
@@ -43,8 +50,11 @@ export default async function AdminLayout({
         <div className="mb-10">
           <Image src={logo} alt="Opção Contábil" className="h-9 w-auto" />
           <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.1em] text-lime">
-            Painel Administrativo
+            Portal do Cliente
           </p>
+          {cliente?.nome_empresa && (
+            <p className="mt-1 text-sm font-medium text-white">{cliente.nome_empresa}</p>
+          )}
         </div>
 
         <nav className="flex flex-1 flex-col gap-1">

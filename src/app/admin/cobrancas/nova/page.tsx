@@ -17,6 +17,7 @@ export default function NovaCobrancaPage() {
   const supabase = createClient()
 
   const [clienteId, setClienteId] = useState('')
+  const [descricao, setDescricao] = useState('')
   const [competencia, setCompetencia] = useState('')
   const [valor, setValor] = useState('')
   const [dataVencimento, setDataVencimento] = useState('')
@@ -31,6 +32,7 @@ export default function NovaCobrancaPage() {
 
     const { error: insertError } = await supabase.from('cobrancas').insert({
       cliente_id: clienteId || null,
+      descricao,
       competencia: competencia ? `${competencia}-01` : null,
       valor: valor ? Number(valor) : null,
       data_vencimento: dataVencimento || null,
@@ -38,7 +40,7 @@ export default function NovaCobrancaPage() {
     })
 
     if (insertError) {
-      setError('Não foi possível salvar a cobrança. Tente novamente.')
+      setError('Não foi possível salvar o honorário. Tente novamente.')
       setLoading(false)
       return
     }
@@ -56,7 +58,7 @@ export default function NovaCobrancaPage() {
         ← Voltar
       </Link>
 
-      <h1 className="mb-8 font-display text-2xl font-semibold text-navy">Nova Cobrança</h1>
+      <h1 className="mb-8 font-display text-2xl font-semibold text-navy">Novo Honorário</h1>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
@@ -64,6 +66,21 @@ export default function NovaCobrancaPage() {
             Cliente
           </label>
           <SelectCliente id="cliente" value={clienteId} onChange={setClienteId} required />
+        </div>
+
+        <div>
+          <label htmlFor="descricao" className={labelClasses}>
+            Descrição
+          </label>
+          <input
+            id="descricao"
+            type="text"
+            required
+            placeholder="Ex: Honorário mensal - Julho/2026, ou Emissão de NF avulsa"
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+            className={inputClasses}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-5">
@@ -119,7 +136,7 @@ export default function NovaCobrancaPage() {
           disabled={loading}
           className="mt-2 inline-flex items-center gap-2 rounded-[3px] bg-lime px-5 py-2.5 text-sm font-semibold text-navy transition duration-200 hover:-translate-y-px hover:bg-lime-bright hover:shadow-[0_6px_16px_rgba(141,198,63,0.4)] disabled:opacity-60"
         >
-          {loading ? 'Salvando...' : 'Salvar cobrança'}
+          {loading ? 'Salvando...' : 'Salvar honorário'}
         </button>
       </form>
     </div>
