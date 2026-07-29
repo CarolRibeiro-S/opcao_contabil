@@ -1,16 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-import ToggleStatusButton from './ToggleStatusButton'
+import AcoesCliente from './AcoesCliente'
 
 type Cliente = {
   id: string
+  cnpj_cpf: string | null
   nome_empresa: string
   tipo: string
   segmento: string | null
   status: string
+  responsavel: string | null
   telefone: string | null
+  regime_tributario: string | null
 }
 
 const tipoBadge: Record<string, string> = {
@@ -19,8 +21,14 @@ const tipoBadge: Record<string, string> = {
 }
 
 const tipoLabel: Record<string, string> = {
-  pessoa_juridica: 'Pessoa Jurídica',
+  pessoa_juridica: 'PJ',
   mei: 'MEI',
+}
+
+const regimeLabel: Record<string, string> = {
+  simples_nacional: 'Simples Nacional',
+  lucro_presumido: 'Lucro Presumido',
+  lucro_real: 'Lucro Real',
 }
 
 const statusBadge: Record<string, string> = {
@@ -54,9 +62,13 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
         <p className="text-sm text-navy-soft">Nenhum cliente encontrado para essa busca.</p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-rule bg-white">
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[960px] text-left text-sm">
             <thead className="bg-paper-dim">
               <tr>
+                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                  CNPJ
+                </th>
                 <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
                   Empresa
                 </th>
@@ -70,6 +82,9 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
                   Status
                 </th>
                 <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                  Responsável
+                </th>
+                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
                   Telefone
                 </th>
                 <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
@@ -80,15 +95,23 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
             <tbody>
               {clientesFiltrados.map((cliente) => (
                 <tr key={cliente.id} className="border-t border-rule">
+                  <td className="px-4 py-3 text-charcoal">{cliente.cnpj_cpf ?? '—'}</td>
                   <td className="px-4 py-3 font-medium text-navy">{cliente.nome_empresa}</td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${
-                        tipoBadge[cliente.tipo] ?? 'border border-rule bg-paper-dim text-navy-soft'
-                      }`}
-                    >
-                      {tipoLabel[cliente.tipo] ?? cliente.tipo}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${
+                          tipoBadge[cliente.tipo] ?? 'border border-rule bg-paper-dim text-navy-soft'
+                        }`}
+                      >
+                        {tipoLabel[cliente.tipo] ?? cliente.tipo}
+                      </span>
+                      {cliente.regime_tributario && (
+                        <span className="rounded-full border border-rule bg-paper-dim px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] text-navy-soft">
+                          {regimeLabel[cliente.regime_tributario] ?? cliente.regime_tributario}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-charcoal">{cliente.segmento ?? '—'}</td>
                   <td className="px-4 py-3">
@@ -100,22 +123,16 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
                       {cliente.status}
                     </span>
                   </td>
+                  <td className="px-4 py-3 text-charcoal">{cliente.responsavel ?? '—'}</td>
                   <td className="px-4 py-3 text-charcoal">{cliente.telefone ?? '—'}</td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Link
-                        href={`/admin/clientes/${cliente.id}/editar`}
-                        className="text-xs font-semibold text-navy-soft transition-colors duration-200 hover:text-navy"
-                      >
-                        Editar
-                      </Link>
-                      <ToggleStatusButton id={cliente.id} status={cliente.status} />
-                    </div>
+                    <AcoesCliente id={cliente.id} nome={cliente.nome_empresa} status={cliente.status} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

@@ -117,6 +117,78 @@ export function emailAlertaTarefa({ titulo, nomeCliente, dataLimite, diasRestant
   return { subject, html }
 }
 
+type ItemImposto = {
+  tipo: string
+  dataVencimento: string
+}
+
+type EmailImpostosMensalParams = {
+  nomeCliente: string
+  competencia: string
+  itens: ItemImposto[]
+}
+
+export function emailImpostosMensal({ nomeCliente, competencia, itens }: EmailImpostosMensalParams) {
+  const [ano, mes] = competencia.split('-')
+  const competenciaFormatada = `${mes}/${ano}`
+
+  const subject = `Impostos de ${competenciaFormatada} — Opção Contábil`
+
+  const linhasItens = itens
+    .map((item) => {
+      const [anoV, mesV, diaV] = item.dataVencimento.split('-')
+      const dataFormatada = `${diaV}/${mesV}/${anoV}`
+
+      return `
+                  <li style="margin:0 0 8px; color:#24261f; font-size:14px; line-height:1.5;">
+                    <strong style="color:#16234a;">${item.tipo}</strong> - VENCIMENTO
+                    <strong style="color:#8dc63f;">${dataFormatada}</strong>
+                  </li>`
+    })
+    .join('')
+
+  const html = `
+<!doctype html>
+<html lang="pt-BR">
+  <body style="margin:0; padding:0; background-color:#f7f8f5; font-family: Arial, Helvetica, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f8f5; padding:32px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; border:1px solid #d8ddd0; overflow:hidden;">
+            <tr>
+              <td style="background-color:#16234a; padding:20px 28px;">
+                <span style="color:#8dc63f; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; font-family: 'Courier New', monospace;">
+                  Opção Contábil
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px;">
+                <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
+                  Olá, <strong>${nomeCliente}</strong>,
+                </p>
+                <ul style="margin:0 0 20px; padding-left:18px;">
+                  ${linhasItens}
+                </ul>
+                <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
+                  Segue os impostos referente ao mês ${competenciaFormatada}.
+                </p>
+                <p style="margin:0; color:#55564a; font-size:13px;">
+                  — Opção Contábil
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`.trim()
+
+  return { subject, html }
+}
+
 type ItemResumo = {
   nomeCliente: string
   nomeObrigacao: string

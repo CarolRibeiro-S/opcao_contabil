@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import CampoSenha from '@/components/shared/CampoSenha'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -12,6 +13,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [contaInativa, setContaInativa] = useState(false)
+
+  useEffect(() => {
+    // Lido do window.location (não useSearchParams) de propósito: mantém
+    // /login estático no build, já que essa mensagem só importa depois do
+    // redirecionamento vindo do layout do admin.
+    const params = new URLSearchParams(window.location.search)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setContaInativa(params.get('erro') === 'inativo')
+  }, [])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -51,6 +62,12 @@ export default function LoginPage() {
           Opção Contábil
         </h1>
 
+        {contaInativa && (
+          <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            Seu acesso foi desativado. Entre em contato com o administrador.
+          </p>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label
@@ -76,9 +93,8 @@ export default function LoginPage() {
             >
               Senha
             </label>
-            <input
+            <CampoSenha
               id="password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required

@@ -22,7 +22,7 @@ export default async function PrazosPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-semibold text-navy">Prazos</h1>
         <Link
           href="/admin/prazos/novo"

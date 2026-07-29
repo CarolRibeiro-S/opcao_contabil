@@ -52,7 +52,7 @@ export default async function CobrancasPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-semibold text-navy">Honorários Contábeis</h1>
         <Link
           href="/admin/cobrancas/nova"
@@ -66,7 +66,8 @@ export default async function CobrancasPage() {
         <p className="text-sm text-navy-soft">Nenhum honorário cadastrado ainda.</p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-rule bg-white">
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-paper-dim">
               <tr>
                 <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
@@ -125,6 +126,7 @@ export default async function CobrancasPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

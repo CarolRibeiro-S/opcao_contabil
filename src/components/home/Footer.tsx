@@ -3,7 +3,7 @@ import Link from 'next/link'
 export default function Footer() {
   return (
     <footer className="bg-navy py-14 pb-[26px] text-paper">
-      <div className="mx-auto grid max-w-[1180px] grid-cols-1 gap-10 px-8 sm:grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr]">
+      <div className="mx-auto grid max-w-[1180px] grid-cols-1 gap-10 px-5 sm:grid-cols-2 sm:px-8 md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <div className="font-display text-lg font-semibold text-white">Opção Contábil</div>
           <p className="mt-3.5 max-w-[280px] text-[13.5px] text-[#aab4d6]">
@@ -71,10 +71,17 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="mx-auto mt-[46px] max-w-[1180px] border-t border-white/15 px-8 pt-[22px]">
+      <div className="mx-auto mt-[46px] max-w-[1180px] border-t border-white/15 px-5 pt-[22px] sm:px-8">
         <div className="flex flex-wrap justify-between gap-2.5 text-[12.5px] text-[#8f9ac0]">
           <span>© 2026 Opção Contábil. Todos os direitos reservados.</span>
-          <span>Brasília — DF</span>
+          <a
+            href="https://maps.app.goo.gl/QAqLwPFCToyvXXaP8"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-lime-bright"
+          >
+            Sobradinho I, Brasília - DF
+          </a>
         </div>
         <p className="mt-2 text-[11.5px] text-[#6d78a0]">
           Site criado e desenvolvido por{' '}

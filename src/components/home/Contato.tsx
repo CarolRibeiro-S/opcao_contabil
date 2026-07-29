@@ -1,9 +1,16 @@
 import FormularioContato from './FormularioContato'
 
+const ENDERECO_ESCRITORIO =
+  'Q 2 Quadra 02 Conjunto A lote 3/5 Sala 111 - Sobradinho I, Brasília - DF, 73015-120'
+
+const MAPA_EMBED_SRC = `https://www.google.com/maps?q=${encodeURIComponent(
+  ENDERECO_ESCRITORIO
+)}&output=embed`
+
 export default function Contato() {
   return (
     <section id="contato" className="py-[84px]">
-      <div className="mx-auto grid max-w-[1180px] grid-cols-1 gap-14 px-8 md:grid-cols-2">
+      <div className="mx-auto grid max-w-[1180px] grid-cols-1 gap-10 px-5 sm:px-8 md:grid-cols-2 md:gap-14">
         <div className="reveal">
           <p className="font-mono text-xs uppercase tracking-[0.14em] text-navy-soft">Fale com a gente</p>
           <h2 className="mt-2 font-display text-[30px] font-semibold text-navy">
@@ -34,12 +41,12 @@ export default function Contato() {
             <div>
               <h4 className="font-display text-base font-semibold text-navy">WhatsApp</h4>
               <a
-                href="https://wa.me/5561985993552"
+                href="https://wa.me/5561946699671"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-[3px] block text-sm text-[#55564a] hover:text-navy"
               >
-                (61) 98599-3552
+                (61) 9466-9671
               </a>
             </div>
           </div>
@@ -49,7 +56,12 @@ export default function Contato() {
             </div>
             <div>
               <h4 className="font-display text-base font-semibold text-navy">Telefone</h4>
-              <p className="mt-[3px] text-sm text-[#55564a]">(61) 3034-6911</p>
+              <a
+                href="tel:+556130346911"
+                className="mt-[3px] block text-sm text-[#55564a] hover:text-navy"
+              >
+                (61) 3034-6911
+              </a>
             </div>
           </div>
           <div className="flex gap-4">
@@ -58,7 +70,16 @@ export default function Contato() {
             </div>
             <div>
               <h4 className="font-display text-base font-semibold text-navy">Endereço</h4>
-              <p className="mt-[3px] text-sm text-[#55564a]">Brasília — DF</p>
+              <a
+                href="https://maps.app.goo.gl/QAqLwPFCToyvXXaP8"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-[3px] block text-sm text-[#55564a] hover:text-navy"
+              >
+                Q 2 Quadra 02 Conjunto A, Lote 3/5, Sala 111
+                <br />
+                Sobradinho I, Brasília - DF, 73015-120
+              </a>
             </div>
           </div>
           <div className="flex gap-4">
@@ -77,8 +98,22 @@ export default function Contato() {
               </a>
             </div>
           </div>
-          <div className="mt-1.5 flex h-[150px] items-center justify-center rounded-lg border border-dashed border-rule bg-[repeating-linear-gradient(135deg,var(--paper-dim),var(--paper-dim)_10px,var(--paper)_10px,var(--paper)_20px)] font-mono text-[11.5px] tracking-[0.06em] text-[#8a8f80]">
-            mapa · localização do escritório
+          <div className="mt-1.5 overflow-hidden rounded-lg border border-rule">
+            <iframe
+              src={MAPA_EMBED_SRC}
+              title="Localização da Opção Contábil no Google Maps"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              className="h-[220px] w-full border-0"
+            />
+            <a
+              href="https://maps.app.goo.gl/QAqLwPFCToyvXXaP8"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block bg-white px-3 py-2 text-center font-mono text-[11px] uppercase tracking-[0.06em] text-navy-soft transition-colors duration-200 hover:text-navy"
+            >
+              Ver no Google Maps
+            </a>
           </div>
         </div>
       </div>

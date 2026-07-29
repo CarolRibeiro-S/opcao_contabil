@@ -148,7 +148,8 @@ export default function ImportarPlanilhaPage() {
             </p>
           ) : (
             <div className="overflow-hidden rounded-lg border border-rule bg-white">
-              <table className="w-full text-left text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-left text-sm">
                 <thead className="bg-paper-dim">
                   <tr>
                     <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
@@ -172,6 +173,7 @@ export default function ImportarPlanilhaPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>

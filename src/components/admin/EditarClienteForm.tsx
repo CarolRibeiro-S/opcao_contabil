@@ -8,6 +8,7 @@ import { SEGMENTOS } from '@/lib/constants/segmentos'
 import ProfissionaisEditor from '@/components/admin/ProfissionaisEditor'
 import AnexosInput from '@/components/admin/AnexosInput'
 import ComunicadosCliente from '@/components/admin/ComunicadosCliente'
+import { registrarHistoricoCliente } from '@/lib/historicoCliente'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -18,9 +19,12 @@ const labelClasses =
 type Cliente = {
   id: string
   nome_empresa: string
+  apelido: string | null
   cnpj_cpf: string | null
   tipo: string
+  regime_tributario: string | null
   segmento: string | null
+  responsavel: string | null
   email: string | null
   telefone: string | null
   observacoes: string | null
@@ -48,11 +52,14 @@ export default function EditarClienteForm({
   const supabase = createClient()
 
   const [nomeEmpresa, setNomeEmpresa] = useState(cliente.nome_empresa)
+  const [apelido, setApelido] = useState(cliente.apelido ?? '')
   const [cnpjCpf, setCnpjCpf] = useState(cliente.cnpj_cpf ?? '')
   const [tipo, setTipo] = useState<'pessoa_juridica' | 'mei'>(
     cliente.tipo === 'mei' ? 'mei' : 'pessoa_juridica'
   )
+  const [regimeTributario, setRegimeTributario] = useState(cliente.regime_tributario ?? '')
   const [segmento, setSegmento] = useState(cliente.segmento ?? SEGMENTOS[0])
+  const [responsavel, setResponsavel] = useState(cliente.responsavel ?? '')
   const [email, setEmail] = useState(cliente.email ?? '')
   const [telefone, setTelefone] = useState(cliente.telefone ?? '')
   const [observacoes, setObservacoes] = useState(cliente.observacoes ?? '')
@@ -75,9 +82,12 @@ export default function EditarClienteForm({
       .from('clientes')
       .update({
         nome_empresa: nomeEmpresa,
+        apelido: apelido || null,
         cnpj_cpf: cnpjCpf || null,
         tipo,
+        regime_tributario: tipo === 'mei' ? null : regimeTributario || null,
         segmento,
+        responsavel: responsavel || null,
         email: email || null,
         telefone: telefone || null,
         observacoes: observacoes || null,
@@ -90,6 +100,13 @@ export default function EditarClienteForm({
       setLoading(false)
       return
     }
+
+    registrarHistoricoCliente({
+      acao: 'editou',
+      entidade: 'cliente',
+      entidadeId: cliente.id,
+      entidadeNome: nomeEmpresa,
+    })
 
     const { error: deleteError } = await supabase
       .from('profissionais_clinica')
@@ -173,7 +190,21 @@ export default function EditarClienteForm({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-5">
+        <div>
+          <label htmlFor="apelido" className={labelClasses}>
+            Apelido
+          </label>
+          <input
+            id="apelido"
+            type="text"
+            placeholder="Nome curto usado nos arquivos, ex: WNF, GREENTEC"
+            value={apelido}
+            onChange={(e) => setApelido(e.target.value)}
+            className={inputClasses}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
             <label htmlFor="cnpjCpf" className={labelClasses}>
               CNPJ/CPF
@@ -197,13 +228,32 @@ export default function EditarClienteForm({
               onChange={(e) => setTipo(e.target.value as 'pessoa_juridica' | 'mei')}
               className={inputClasses}
             >
-              <option value="pessoa_juridica">Pessoa Jurídica</option>
+              <option value="pessoa_juridica">PJ</option>
               <option value="mei">MEI</option>
             </select>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-5">
+        {tipo === 'pessoa_juridica' && (
+          <div>
+            <label htmlFor="regimeTributario" className={labelClasses}>
+              Regime Tributário
+            </label>
+            <select
+              id="regimeTributario"
+              value={regimeTributario}
+              onChange={(e) => setRegimeTributario(e.target.value)}
+              className={inputClasses}
+            >
+              <option value="">Selecione</option>
+              <option value="simples_nacional">Simples Nacional</option>
+              <option value="lucro_presumido">Lucro Presumido</option>
+              <option value="lucro_real">Lucro Real</option>
+            </select>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
             <label htmlFor="segmento" className={labelClasses}>
               Segmento
@@ -238,7 +288,21 @@ export default function EditarClienteForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-5">
+        <div>
+          <label htmlFor="responsavel" className={labelClasses}>
+            Responsável pela empresa
+          </label>
+          <input
+            id="responsavel"
+            type="text"
+            placeholder="Nome de quem responde pela empresa"
+            value={responsavel}
+            onChange={(e) => setResponsavel(e.target.value)}
+            className={inputClasses}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
             <label htmlFor="email" className={labelClasses}>
               E-mail

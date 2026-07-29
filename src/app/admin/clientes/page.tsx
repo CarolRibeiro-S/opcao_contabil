@@ -7,12 +7,12 @@ export default async function ClientesPage() {
 
   const { data: clientes } = await supabase
     .from('clientes')
-    .select('id, nome_empresa, tipo, segmento, status, telefone')
+    .select('id, cnpj_cpf, nome_empresa, tipo, segmento, status, responsavel, telefone, regime_tributario')
     .order('nome_empresa', { ascending: true })
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-semibold text-navy">Clientes</h1>
         <Link
           href="/admin/clientes/novo"

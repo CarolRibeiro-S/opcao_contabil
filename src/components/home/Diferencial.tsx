@@ -19,7 +19,7 @@ const items = [
 export default function Diferencial() {
   return (
     <section id="diferencial" className="py-[84px]">
-      <div className="mx-auto max-w-[1180px] px-8">
+      <div className="mx-auto max-w-[1180px] px-5 sm:px-8">
         <div className="reveal mb-12 max-w-[600px]">
           <p className="font-mono text-xs uppercase tracking-[0.14em] text-navy-soft">Diferencial</p>
           <h2 className="mt-2.5 font-display text-[clamp(27px,3vw,36px)] font-semibold tracking-[-0.01em] text-navy">

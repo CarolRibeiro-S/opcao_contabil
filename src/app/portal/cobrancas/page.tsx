@@ -65,7 +65,8 @@ export default async function PortalCobrancasPage() {
         <p className="text-sm text-navy-soft">Nenhum honorário registrado ainda.</p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-rule bg-white">
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="bg-paper-dim">
               <tr>
                 <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
@@ -110,6 +111,7 @@ export default async function PortalCobrancasPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

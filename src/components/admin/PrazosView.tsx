@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import PrazosKanban from './PrazosKanban'
 import PrazosCalendario from './PrazosCalendario'
 
@@ -14,7 +15,9 @@ type Prazo = {
 }
 
 export default function PrazosView({ prazos }: { prazos: Prazo[] }) {
-  const [visao, setVisao] = useState<'kanban' | 'calendario'>('kanban')
+  const searchParams = useSearchParams()
+  const visaoInicial = searchParams.get('visao') === 'calendario' ? 'calendario' : 'kanban'
+  const [visao, setVisao] = useState<'kanban' | 'calendario'>(visaoInicial)
 
   return (
     <div>

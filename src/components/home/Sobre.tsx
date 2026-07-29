@@ -3,7 +3,7 @@ import Image from 'next/image'
 export default function Sobre() {
   return (
     <section id="sobre" className="bg-paper-dim py-[84px]">
-      <div className="mx-auto grid max-w-[1180px] grid-cols-1 items-center gap-14 px-8 md:grid-cols-[0.85fr_1.15fr]">
+      <div className="mx-auto grid max-w-[1180px] grid-cols-1 items-center gap-10 px-5 sm:px-8 md:grid-cols-[0.85fr_1.15fr] md:gap-14">
         <div className="reveal relative aspect-[4/5] overflow-hidden rounded-[10px] bg-navy">
           <Image
             src="/images/foto-hederson.jpeg"

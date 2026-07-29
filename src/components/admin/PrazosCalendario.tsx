@@ -118,8 +118,8 @@ export default function PrazosCalendario({ prazos }: { prazos: Prazo[] }) {
 
   return (
     <div>
-      <div className="mb-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             type="button"
             onClick={irParaMesAnterior}
@@ -128,7 +128,7 @@ export default function PrazosCalendario({ prazos }: { prazos: Prazo[] }) {
           >
             ←
           </button>
-          <h2 className="w-[170px] text-center font-display text-base font-semibold text-navy">
+          <h2 className="w-[130px] text-center font-display text-sm font-semibold text-navy sm:w-[170px] sm:text-base">
             {MESES[mesIndex]} {ano}
           </h2>
           <button

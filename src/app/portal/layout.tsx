@@ -1,16 +1,15 @@
-import Image from 'next/image'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import LogoutButton from '@/components/admin/LogoutButton'
-import logo from '../../../public/images/logo.jpg'
+import AdminMobileNav from '@/components/admin/AdminMobileNav'
+import Sidebar, { type SidebarLink } from '@/components/shared/Sidebar'
+import logo from '../../../public/images/logo-simbolo.png'
 
-const navLinks = [
-  { href: '/portal', label: 'Início', icon: '🏠' },
-  { href: '/portal/prazos', label: 'Prazos', icon: '⏰' },
-  { href: '/portal/comunicados', label: 'Comunicados', icon: '💬' },
-  { href: '/portal/documentos', label: 'Documentos', icon: '📄' },
-  { href: '/portal/cobrancas', label: 'Honorários Contábeis', icon: '💰' },
+const navLinks: SidebarLink[] = [
+  { href: '/portal', label: 'Início', icon: 'inicio' },
+  { href: '/portal/prazos', label: 'Prazos', icon: 'prazos' },
+  { href: '/portal/comunicados', label: 'Comunicados', icon: 'comunicados' },
+  { href: '/portal/documentos', label: 'Documentos', icon: 'documentos' },
+  { href: '/portal/cobrancas', label: 'Honorários Contábeis', icon: 'honorarios' },
 ]
 
 export default async function PortalLayout({
@@ -44,38 +43,29 @@ export default async function PortalLayout({
     .eq('profile_id', user.id)
     .single()
 
+  const usuarioNome = cliente?.nome_empresa ?? 'Cliente'
+
   return (
-    <div className="flex min-h-screen bg-paper">
-      <aside className="flex w-[240px] shrink-0 flex-col bg-navy p-6">
-        <div className="mb-10">
-          <Image src={logo} alt="Opção Contábil" className="h-9 w-auto" />
-          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.1em] text-lime">
-            Portal do Cliente
-          </p>
-          {cliente?.nome_empresa && (
-            <p className="mt-1 text-sm font-medium text-white">{cliente.nome_empresa}</p>
-          )}
-        </div>
+    <div className="flex min-h-screen flex-col bg-paper md:flex-row">
+      <AdminMobileNav
+        logo={logo}
+        titulo={cliente?.nome_empresa ?? 'Portal do Cliente'}
+        subtitulo="Portal do Cliente"
+        navLinks={navLinks}
+        usuarioNome={usuarioNome}
+        usuarioEmail={user.email}
+      />
 
-        <nav className="flex flex-1 flex-col gap-1">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-[#c4cbe0] transition-colors duration-200 hover:bg-white/5 hover:text-white"
-            >
-              <span aria-hidden="true">{link.icon}</span>
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+      <Sidebar
+        logoSrc={logo}
+        titulo={cliente?.nome_empresa ?? 'Portal do Cliente'}
+        subtitulo="Portal do Cliente"
+        links={navLinks}
+        usuarioNome={usuarioNome}
+        usuarioEmail={user.email}
+      />
 
-        <div className="mt-auto border-t border-white/15 pt-4">
-          <LogoutButton />
-        </div>
-      </aside>
-
-      <main className="flex-1 p-8">{children}</main>
+      <main className="flex-1 overflow-x-hidden p-4 md:p-8">{children}</main>
     </div>
   )
 }

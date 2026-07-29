@@ -103,7 +103,7 @@ export async function GET(request: Request) {
       })
 
       const { error: emailError } = await resend.emails.send({
-        from: 'onboarding@resend.dev',
+        from: 'naoresponda@opcaocontabilbsb.com.br',
         to: email,
         cc: process.env.ADMIN_ALERT_EMAIL,
         subject,
@@ -150,7 +150,7 @@ export async function GET(request: Request) {
       })
 
       const { error: emailError } = await resend.emails.send({
-        from: 'onboarding@resend.dev',
+        from: 'naoresponda@opcaocontabilbsb.com.br',
         to: process.env.ADMIN_ALERT_EMAIL!,
         subject,
         html,
@@ -175,7 +175,7 @@ export async function GET(request: Request) {
   })
 
   const { error: resumoError } = await resend.emails.send({
-    from: 'onboarding@resend.dev',
+    from: 'naoresponda@opcaocontabilbsb.com.br',
     to: process.env.ADMIN_ALERT_EMAIL!,
     subject: resumoSubject,
     html: resumoHtml,

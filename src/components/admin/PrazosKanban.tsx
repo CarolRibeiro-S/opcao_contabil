@@ -61,12 +61,12 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-3 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
       {COLUNAS.map((coluna, colunaIndex) => {
         const prazosDaColuna = prazos.filter((prazo) => prazo.status === coluna.status)
 
         return (
-          <div key={coluna.status} className="flex flex-col">
+          <div key={coluna.status} className="flex w-[82vw] shrink-0 snap-center flex-col sm:w-auto sm:shrink">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-display text-sm font-semibold text-navy">{coluna.titulo}</h2>
               <span className={`rounded-full px-2 py-0.5 font-mono text-[11px] ${coluna.corBadge}`}>

@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import logo from '../../../public/images/logo.jpg'
+import HeaderMobileMenu from './HeaderMobileMenu'
+import logoSimbolo from '../../../public/images/logo-simbolo.png'
 
 const navLinks = [
   { href: '#servicos', label: 'Serviços' },
@@ -12,9 +13,9 @@ const navLinks = [
 export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-rule bg-paper/92 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-[1180px] items-center justify-between px-8 py-4">
+      <div className="mx-auto flex max-w-[1180px] items-center justify-between px-5 py-4 sm:px-8">
         <div className="flex items-center gap-3">
-          <Image src={logo} alt="Opção Contábil" priority className="h-[42px] w-auto" />
+          <Image src={logoSimbolo} alt="Opção Contábil" priority className="h-16 w-auto shrink-0" />
           <div className="font-display text-lg font-semibold text-navy">
             Opção Contábil
             <span className="mt-0.5 block font-mono text-[10px] font-normal uppercase tracking-[0.1em] text-lime">
@@ -36,7 +37,7 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="hidden items-center gap-3 md:flex">
           <Link
             href="/login"
             className="inline-flex items-center gap-2 rounded-[3px] border-[1.3px] border-navy px-5 py-2.5 text-sm font-semibold text-navy transition-colors duration-200 hover:bg-navy hover:text-paper"
@@ -50,6 +51,8 @@ export default function Header() {
             Painel do Contador
           </Link>
         </div>
+
+        <HeaderMobileMenu />
       </div>
     </header>
   )

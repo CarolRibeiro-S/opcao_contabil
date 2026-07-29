@@ -4,7 +4,7 @@ export default function Hero() {
       className="relative overflow-hidden bg-[repeating-linear-gradient(180deg,transparent,transparent_37px,var(--rule)_37px,var(--rule)_38px)] py-[92px] pb-[78px]
         after:pointer-events-none after:absolute after:inset-0 after:bg-[linear-gradient(180deg,var(--paper)_0%,rgba(247,248,245,0.55)_40%,var(--paper)_100%)] after:content-['']"
     >
-      <div className="relative z-[1] mx-auto grid max-w-[1180px] grid-cols-1 items-center gap-14 px-8 md:grid-cols-[1.15fr_0.85fr]">
+      <div className="relative z-[1] mx-auto grid max-w-[1180px] grid-cols-1 items-center gap-10 px-5 sm:px-8 md:grid-cols-[1.15fr_0.85fr] md:gap-14">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.14em] text-navy-soft">
             Contabilidade orientada a prazos
@@ -52,7 +52,7 @@ export default function Hero() {
               <div className="h-full w-full rounded-full bg-lime" />
             </div>
 
-            <div className="mt-4 flex items-center justify-between gap-3 border-t border-rule pt-3.5 font-mono text-[11px] text-navy-soft">
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-rule pt-3.5 font-mono text-[11px] text-navy-soft sm:flex-nowrap sm:justify-between">
               <span>900+ clientes atendidos</span>
               <span>11 obrigações monitoradas</span>
             </div>
