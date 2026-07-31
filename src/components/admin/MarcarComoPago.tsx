@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { reverterReceitaDoHonorario, sincronizarReceitaDoHonorario } from '@/lib/receitaHonorario'
 
 export default function MarcarComoPago({ id, status }: { id: string; status: string }) {
   const router = useRouter()
@@ -13,6 +14,7 @@ export default function MarcarComoPago({ id, status }: { id: string; status: str
     setLoading(true)
     const hoje = new Date().toISOString().slice(0, 10)
     await supabase.from('cobrancas').update({ status: 'pago', data_pagamento: hoje }).eq('id', id)
+    await sincronizarReceitaDoHonorario(supabase, id)
     setLoading(false)
     router.refresh()
   }
@@ -22,6 +24,7 @@ export default function MarcarComoPago({ id, status }: { id: string; status: str
 
     setLoading(true)
     await supabase.from('cobrancas').update({ status: 'em_aberto', data_pagamento: null }).eq('id', id)
+    await reverterReceitaDoHonorario(supabase, id)
     setLoading(false)
     router.refresh()
   }

@@ -4,7 +4,8 @@ import { useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { CATEGORIAS_DESPESA } from '@/lib/constants/despesas'
+import SelectCategoria from '@/components/admin/SelectCategoria'
+import CampoMoeda from '@/components/shared/CampoMoeda'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -17,10 +18,12 @@ export default function NovaDespesaPage() {
   const supabase = createClient()
 
   const [descricao, setDescricao] = useState('')
-  const [categoria, setCategoria] = useState<string>(CATEGORIAS_DESPESA[0].chave)
-  const [valor, setValor] = useState('')
+  const [categoriaId, setCategoriaId] = useState('')
+  const [valor, setValor] = useState<number | null>(null)
   const [competencia, setCompetencia] = useState('')
+  const [dataVencimento, setDataVencimento] = useState('')
   const [dataPagamento, setDataPagamento] = useState('')
+  const [observacao, setObservacao] = useState('')
 
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -28,6 +31,12 @@ export default function NovaDespesaPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
+
+    if (!categoriaId) {
+      setError('Selecione (ou crie) uma categoria.')
+      return
+    }
+
     setLoading(true)
 
     const {
@@ -42,16 +51,19 @@ export default function NovaDespesaPage() {
 
     const { error: insertError } = await supabase.from('despesas').insert({
       descricao,
-      categoria,
-      valor: valor ? Number(valor) : null,
+      categoria_id: categoriaId,
+      valor,
       competencia: competencia ? `${competencia}-01` : null,
+      data_vencimento: dataVencimento || null,
       data_pagamento: dataPagamento || null,
+      observacao: observacao || null,
       status: dataPagamento ? 'pago' : 'em_aberto',
       criado_por: user.id,
     })
 
     if (insertError) {
-      setError('Não foi possível salvar a despesa. Tente novamente.')
+      console.error('Erro ao salvar despesa:', insertError)
+      setError(insertError.message)
       setLoading(false)
       return
     }
@@ -92,38 +104,30 @@ export default function NovaDespesaPage() {
             <label htmlFor="categoria" className={labelClasses}>
               Categoria
             </label>
-            <select
+            <SelectCategoria
               id="categoria"
-              value={categoria}
-              onChange={(e) => setCategoria(e.target.value)}
+              tipo="despesa"
+              value={categoriaId}
+              onChange={setCategoriaId}
               className={inputClasses}
-            >
-              {CATEGORIAS_DESPESA.map((item) => (
-                <option key={item.chave} value={item.chave}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div>
             <label htmlFor="valor" className={labelClasses}>
               Valor
             </label>
-            <input
+            <CampoMoeda
               id="valor"
-              type="number"
-              step="0.01"
-              min="0"
               required
-              value={valor}
-              onChange={(e) => setValor(e.target.value)}
+              valor={valor}
+              onChange={setValor}
               className={inputClasses}
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div>
             <label htmlFor="competencia" className={labelClasses}>
               Competência
@@ -134,6 +138,20 @@ export default function NovaDespesaPage() {
               required
               value={competencia}
               onChange={(e) => setCompetencia(e.target.value)}
+              className={inputClasses}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="dataVencimento" className={labelClasses}>
+              Data de vencimento
+            </label>
+            <input
+              id="dataVencimento"
+              type="date"
+              required
+              value={dataVencimento}
+              onChange={(e) => setDataVencimento(e.target.value)}
               className={inputClasses}
             />
           </div>
@@ -150,6 +168,20 @@ export default function NovaDespesaPage() {
               className={inputClasses}
             />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="observacao" className={labelClasses}>
+            Observação
+          </label>
+          <textarea
+            id="observacao"
+            rows={3}
+            placeholder="Ex: pago via PIX, banco X, referente à NF 1234"
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+            className={`${inputClasses} resize-y`}
+          />
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}

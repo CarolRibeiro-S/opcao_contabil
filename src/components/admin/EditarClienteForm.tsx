@@ -9,6 +9,8 @@ import ProfissionaisEditor from '@/components/admin/ProfissionaisEditor'
 import AnexosInput from '@/components/admin/AnexosInput'
 import ComunicadosCliente from '@/components/admin/ComunicadosCliente'
 import { registrarHistoricoCliente } from '@/lib/historicoCliente'
+import CampoDocumento from '@/components/shared/CampoDocumento'
+import CampoTelefone from '@/components/shared/CampoTelefone'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -209,13 +211,7 @@ export default function EditarClienteForm({
             <label htmlFor="cnpjCpf" className={labelClasses}>
               CNPJ/CPF
             </label>
-            <input
-              id="cnpjCpf"
-              type="text"
-              value={cnpjCpf}
-              onChange={(e) => setCnpjCpf(e.target.value)}
-              className={inputClasses}
-            />
+            <CampoDocumento id="cnpjCpf" valor={cnpjCpf} onChange={setCnpjCpf} className={inputClasses} />
           </div>
 
           <div>
@@ -320,13 +316,7 @@ export default function EditarClienteForm({
             <label htmlFor="telefone" className={labelClasses}>
               Telefone
             </label>
-            <input
-              id="telefone"
-              type="text"
-              value={telefone}
-              onChange={(e) => setTelefone(e.target.value)}
-              className={inputClasses}
-            />
+            <CampoTelefone id="telefone" valor={telefone} onChange={setTelefone} className={inputClasses} />
           </div>
         </div>
 

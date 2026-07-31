@@ -39,8 +39,27 @@ const inputClasses =
 const labelClasses =
   'mb-[7px] block font-mono text-[11px] uppercase tracking-[0.1em] text-navy-soft'
 
+// created_at vem em UTC do banco (timestamptz); precisa converter pro fuso
+// de Brasília explicitamente, senão o dia exibido pode variar conforme o
+// fuso do navegador — mesmo cuidado já usado em formatarDataHora (histórico).
 function formatarData(data: string) {
-  return new Date(data).toLocaleDateString('pt-BR')
+  return new Date(data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+}
+
+// Função pura fora do componente — só busca e devolve os dados, sem tocar em
+// estado. Quem chama (o efeito de carregamento inicial e o handleSubmit
+// depois de enviar um comunicado novo) decide o que fazer com o resultado.
+// Isso evita chamar setState através de uma função "externa" ao efeito, que
+// é o que o eslint (react-hooks/set-state-in-effect) reclama.
+async function buscarComunicados(clienteId: string) {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('comunicados')
+    .select('id, titulo, tipo, status, created_at')
+    .eq('cliente_id', clienteId)
+    .order('created_at', { ascending: false })
+
+  return data ?? []
 }
 
 export default function ComunicadosCliente({ clienteId }: { clienteId: string }) {
@@ -56,20 +75,14 @@ export default function ComunicadosCliente({ clienteId }: { clienteId: string })
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
 
-  async function carregarComunicados() {
-    const { data } = await supabase
-      .from('comunicados')
-      .select('id, titulo, tipo, status, created_at')
-      .eq('cliente_id', clienteId)
-      .order('created_at', { ascending: false })
-
-    setComunicados(data ?? [])
-    setCarregando(false)
-  }
-
   useEffect(() => {
-    carregarComunicados()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    async function carregar() {
+      const comunicados = await buscarComunicados(clienteId)
+      setComunicados(comunicados)
+      setCarregando(false)
+    }
+
+    carregar()
   }, [clienteId])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -100,7 +113,9 @@ export default function ComunicadosCliente({ clienteId }: { clienteId: string })
     setMensagem('')
     setTipo('aviso')
     setEnviando(false)
-    await carregarComunicados()
+
+    const comunicadosAtualizados = await buscarComunicados(clienteId)
+    setComunicados(comunicadosAtualizados)
   }
 
   return (

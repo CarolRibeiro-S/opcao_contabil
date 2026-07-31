@@ -1,55 +1,83 @@
+// Paleta de cores/badges conhecida pras 8 categorias de despesa que já
+// existiam fixas no código antes de categorias virarem dados do banco
+// (categorias_financeiras). Categorias novas criadas pelo usuário via
+// SelectCategoria não têm entrada aqui e caem no estilo neutro padrão —
+// ver obterEstiloCategoria().
 export const CATEGORIAS_DESPESA = [
-  { chave: 'pessoal', label: 'Pessoal', badgeClasses: 'border border-blue-200 bg-blue-50 text-blue-700' },
+  {
+    chave: 'pessoal',
+    label: 'Pessoal',
+    badgeClasses: 'border border-blue-200 bg-blue-50 text-blue-700',
+    cor: '#3b82f6',
+  },
   {
     chave: 'ocupacao',
     label: 'Ocupação',
     badgeClasses: 'border border-purple-200 bg-purple-50 text-purple-700',
+    cor: '#a855f7',
   },
   {
     chave: 'administrativas',
     label: 'Administrativas',
     badgeClasses: 'border border-gray-300 bg-gray-100 text-gray-700',
+    cor: '#6b7280',
   },
   {
     chave: 'tecnologia',
     label: 'Tecnologia',
     badgeClasses: 'border border-navy/20 bg-navy/5 text-navy',
+    cor: '#16234a',
   },
   {
     chave: 'marketing',
     label: 'Marketing',
     badgeClasses: 'border border-lime/40 bg-lime/15 text-[#4f8f2a]',
+    cor: '#8dc63f',
   },
   {
     chave: 'financeiras',
     label: 'Financeiras',
     badgeClasses: 'border border-amber-200 bg-amber-50 text-amber-700',
+    cor: '#f59e0b',
   },
-  { chave: 'impostos', label: 'Impostos', badgeClasses: 'border border-red-200 bg-red-50 text-red-700' },
-  { chave: 'outras', label: 'Outras', badgeClasses: 'border border-rule bg-paper-dim text-navy-soft' },
+  {
+    chave: 'impostos',
+    label: 'Impostos',
+    badgeClasses: 'border border-red-200 bg-red-50 text-red-700',
+    cor: '#ef4444',
+  },
+  {
+    chave: 'outras',
+    label: 'Outras',
+    badgeClasses: 'border border-rule bg-paper-dim text-navy-soft',
+    cor: '#a8a29e',
+  },
 ] as const
 
-export type CategoriaDespesa = (typeof CATEGORIAS_DESPESA)[number]['chave']
+function normalizarNomeCategoria(nome: string) {
+  return nome
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim()
+}
 
-export const CATEGORIA_LABEL: Record<string, string> = Object.fromEntries(
-  CATEGORIAS_DESPESA.map((categoria) => [categoria.chave, categoria.label])
+const CATEGORIA_POR_NOME_NORMALIZADO = new Map(
+  CATEGORIAS_DESPESA.map((categoria) => [normalizarNomeCategoria(categoria.label), categoria])
 )
 
-export const CATEGORIA_BADGE: Record<string, string> = Object.fromEntries(
-  CATEGORIAS_DESPESA.map((categoria) => [categoria.chave, categoria.badgeClasses])
-)
+const ESTILO_CATEGORIA_PADRAO = {
+  badgeClasses: 'border border-rule bg-paper-dim text-navy-soft',
+  cor: '#a8a29e',
+}
 
-// Cores em hex (não classes Tailwind) pra usar em atributos SVG (fill/stroke),
-// que não conseguem resolver classes utilitárias — só valores CSS diretos.
-export const CATEGORIA_COR_GRAFICO: Record<string, string> = {
-  pessoal: '#3b82f6',
-  ocupacao: '#a855f7',
-  administrativas: '#6b7280',
-  tecnologia: '#16234a',
-  marketing: '#8dc63f',
-  financeiras: '#f59e0b',
-  impostos: '#ef4444',
-  outras: '#a8a29e',
+// Categorias agora vêm de categorias_financeiras e podem ser criadas
+// livremente pelo usuário (combobox "+ Criar categoria"), então a busca de
+// estilo é por nome (normalizado, sem acento/maiúscula) em vez de uma chave
+// fixa — com fallback neutro pra qualquer categoria fora da paleta conhecida.
+export function obterEstiloCategoria(nome: string | null | undefined) {
+  if (!nome) return ESTILO_CATEGORIA_PADRAO
+  return CATEGORIA_POR_NOME_NORMALIZADO.get(normalizarNomeCategoria(nome)) ?? ESTILO_CATEGORIA_PADRAO
 }
 
 export const STATUS_DESPESA_BADGE: Record<string, string> = {

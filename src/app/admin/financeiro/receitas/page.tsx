@@ -1,9 +1,15 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import AcoesDespesa from '@/components/admin/AcoesDespesa'
-import { obterEstiloCategoria, STATUS_DESPESA_BADGE, STATUS_DESPESA_LABEL } from '@/lib/constants/despesas'
+import AcoesReceita from '@/components/admin/AcoesReceita'
+import { obterEstiloCategoria } from '@/lib/constants/despesas'
+import {
+  ORIGEM_RECEITA_BADGE,
+  ORIGEM_RECEITA_LABEL,
+  STATUS_RECEITA_BADGE,
+  STATUS_RECEITA_LABEL,
+} from '@/lib/constants/receitas'
 
-type Despesa = {
+type Receita = {
   id: string
   descricao: string
   categoria_id: string | null
@@ -11,8 +17,9 @@ type Despesa = {
   valor: number | null
   competencia: string | null
   data_vencimento: string | null
-  data_pagamento: string | null
+  data_recebimento: string | null
   status: string
+  origem: string
 }
 
 type CategoriaFiltro = { id: string; nome: string }
@@ -34,7 +41,7 @@ function formatarValor(valor: number | null) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-export default async function DespesasPage({
+export default async function ReceitasPage({
   searchParams,
 }: {
   searchParams: Promise<{ competencia?: string; categoria_id?: string }>
@@ -46,7 +53,7 @@ export default async function DespesasPage({
   const { data: categoriasFiltro } = await supabase
     .from('categorias_financeiras')
     .select('id, nome')
-    .in('tipo', ['despesa', 'ambos'])
+    .in('tipo', ['receita', 'ambos'])
     .order('nome', { ascending: true })
     .returns<CategoriaFiltro[]>()
 
@@ -55,9 +62,9 @@ export default async function DespesasPage({
     : ''
 
   let query = supabase
-    .from('despesas')
+    .from('receitas')
     .select(
-      'id, descricao, categoria_id, categorias_financeiras(nome), valor, competencia, data_vencimento, data_pagamento, status'
+      'id, descricao, categoria_id, categorias_financeiras(nome), valor, competencia, data_vencimento, data_recebimento, status, origem'
     )
     .order('competencia', { ascending: false })
 
@@ -69,24 +76,24 @@ export default async function DespesasPage({
     query = query.eq('categoria_id', categoriaFiltro)
   }
 
-  const { data: despesas } = await query.returns<Despesa[]>()
+  const { data: receitas } = await query.returns<Receita[]>()
 
   const temFiltro = !!competenciaParam || !!categoriaFiltro
 
   return (
     <div>
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-2xl font-semibold text-navy">Despesas</h1>
+        <h1 className="font-display text-2xl font-semibold text-navy">Receitas</h1>
         <Link
-          href="/admin/financeiro/despesas/nova"
+          href="/admin/financeiro/receitas/nova"
           className="inline-flex items-center gap-2 rounded-[3px] bg-lime px-4 py-2 text-sm font-semibold text-navy transition-colors duration-200 hover:bg-lime-bright"
         >
-          + Nova Despesa
+          + Nova Receita
         </Link>
       </div>
 
       <form
-        action="/admin/financeiro/despesas"
+        action="/admin/financeiro/receitas"
         className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-rule bg-white p-4"
       >
         <div>
@@ -130,7 +137,7 @@ export default async function DespesasPage({
 
         {temFiltro && (
           <Link
-            href="/admin/financeiro/despesas"
+            href="/admin/financeiro/receitas"
             className="text-xs font-semibold text-navy-soft underline decoration-rule underline-offset-2 transition-colors duration-200 hover:text-navy hover:decoration-navy"
           >
             Limpar filtros
@@ -138,12 +145,12 @@ export default async function DespesasPage({
         )}
       </form>
 
-      {!despesas || despesas.length === 0 ? (
-        <p className="text-sm text-navy-soft">Nenhuma despesa encontrada.</p>
+      {!receitas || receitas.length === 0 ? (
+        <p className="text-sm text-navy-soft">Nenhuma receita encontrada.</p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-rule bg-white">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1080px] text-left text-sm">
+            <table className="w-full min-w-[1180px] text-left text-sm">
               <thead className="bg-paper-dim">
                 <tr>
                   <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
@@ -162,10 +169,13 @@ export default async function DespesasPage({
                     Vencimento
                   </th>
                   <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                    Pagamento
+                    Recebimento
                   </th>
                   <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
                     Status
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Origem
                   </th>
                   <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
                     Ações
@@ -173,13 +183,13 @@ export default async function DespesasPage({
                 </tr>
               </thead>
               <tbody>
-                {despesas.map((despesa) => {
-                  const nomeCategoria = despesa.categorias_financeiras?.nome ?? null
+                {receitas.map((receita) => {
+                  const nomeCategoria = receita.categorias_financeiras?.nome ?? null
                   const estiloCategoria = obterEstiloCategoria(nomeCategoria)
 
                   return (
-                    <tr key={despesa.id} className="border-t border-rule">
-                      <td className="px-4 py-3 font-medium text-navy">{despesa.descricao}</td>
+                    <tr key={receita.id} className="border-t border-rule">
+                      <td className="px-4 py-3 font-medium text-navy">{receita.descricao}</td>
                       <td className="px-4 py-3">
                         <span
                           className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${estiloCategoria.badgeClasses}`}
@@ -187,21 +197,30 @@ export default async function DespesasPage({
                           {nomeCategoria ?? 'Sem categoria'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-charcoal">{formatarValor(despesa.valor)}</td>
-                      <td className="px-4 py-3 text-charcoal">{formatarCompetencia(despesa.competencia)}</td>
-                      <td className="px-4 py-3 text-charcoal">{formatarData(despesa.data_vencimento)}</td>
-                      <td className="px-4 py-3 text-charcoal">{formatarData(despesa.data_pagamento)}</td>
+                      <td className="px-4 py-3 text-charcoal">{formatarValor(receita.valor)}</td>
+                      <td className="px-4 py-3 text-charcoal">{formatarCompetencia(receita.competencia)}</td>
+                      <td className="px-4 py-3 text-charcoal">{formatarData(receita.data_vencimento)}</td>
+                      <td className="px-4 py-3 text-charcoal">{formatarData(receita.data_recebimento)}</td>
                       <td className="px-4 py-3">
                         <span
                           className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${
-                            STATUS_DESPESA_BADGE[despesa.status] ?? 'border border-rule bg-paper-dim text-navy-soft'
+                            STATUS_RECEITA_BADGE[receita.status] ?? 'border border-rule bg-paper-dim text-navy-soft'
                           }`}
                         >
-                          {STATUS_DESPESA_LABEL[despesa.status] ?? despesa.status}
+                          {STATUS_RECEITA_LABEL[receita.status] ?? receita.status}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <AcoesDespesa id={despesa.id} status={despesa.status} />
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${
+                            ORIGEM_RECEITA_BADGE[receita.origem] ?? 'border border-rule bg-paper-dim text-navy-soft'
+                          }`}
+                        >
+                          {ORIGEM_RECEITA_LABEL[receita.origem] ?? receita.origem}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <AcoesReceita id={receita.id} status={receita.status} origem={receita.origem} />
                       </td>
                     </tr>
                   )

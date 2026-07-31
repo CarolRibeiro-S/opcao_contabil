@@ -13,29 +13,17 @@ const inputClasses =
 const labelClasses =
   'mb-[7px] block font-mono text-[11px] uppercase tracking-[0.1em] text-navy-soft'
 
-export type Despesa = {
-  id: string
-  descricao: string
-  categoria_id: string | null
-  categorias_financeiras: { nome: string } | null
-  valor: number | null
-  competencia: string | null
-  data_vencimento: string | null
-  data_pagamento: string | null
-  observacao: string | null
-}
-
-export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
+export default function NovaReceitaPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  const [descricao, setDescricao] = useState(despesa.descricao)
-  const [categoriaId, setCategoriaId] = useState(despesa.categoria_id ?? '')
-  const [valor, setValor] = useState<number | null>(despesa.valor)
-  const [competencia, setCompetencia] = useState(despesa.competencia?.slice(0, 7) ?? '')
-  const [dataVencimento, setDataVencimento] = useState(despesa.data_vencimento ?? '')
-  const [dataPagamento, setDataPagamento] = useState(despesa.data_pagamento ?? '')
-  const [observacao, setObservacao] = useState(despesa.observacao ?? '')
+  const [descricao, setDescricao] = useState('')
+  const [categoriaId, setCategoriaId] = useState('')
+  const [valor, setValor] = useState<number | null>(null)
+  const [competencia, setCompetencia] = useState('')
+  const [dataVencimento, setDataVencimento] = useState('')
+  const [dataRecebimento, setDataRecebimento] = useState('')
+  const [observacao, setObservacao] = useState('')
 
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -51,40 +39,49 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
 
     setLoading(true)
 
-    const { error: updateError } = await supabase
-      .from('despesas')
-      .update({
-        descricao,
-        categoria_id: categoriaId,
-        valor,
-        competencia: competencia ? `${competencia}-01` : null,
-        data_vencimento: dataVencimento || null,
-        data_pagamento: dataPagamento || null,
-        observacao: observacao || null,
-        status: dataPagamento ? 'pago' : 'em_aberto',
-      })
-      .eq('id', despesa.id)
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (updateError) {
-      setError('Não foi possível salvar as alterações. Tente novamente.')
+    if (!user) {
+      setError('Sessão expirada. Faça login novamente.')
       setLoading(false)
       return
     }
 
-    router.push('/admin/financeiro/despesas')
+    const { error: insertError } = await supabase.from('receitas').insert({
+      descricao,
+      categoria_id: categoriaId,
+      valor,
+      competencia: competencia ? `${competencia}-01` : null,
+      data_vencimento: dataVencimento || null,
+      data_recebimento: dataRecebimento || null,
+      observacao: observacao || null,
+      status: dataRecebimento ? 'recebido' : 'a_receber',
+      origem: 'manual',
+      criado_por: user.id,
+    })
+
+    if (insertError) {
+      setError('Não foi possível salvar a receita. Tente novamente.')
+      setLoading(false)
+      return
+    }
+
+    router.push('/admin/financeiro/receitas')
     router.refresh()
   }
 
   return (
     <div className="max-w-2xl">
       <Link
-        href="/admin/financeiro/despesas"
+        href="/admin/financeiro/receitas"
         className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-navy-soft transition-colors duration-200 hover:text-navy"
       >
         ← Voltar
       </Link>
 
-      <h1 className="mb-8 font-display text-2xl font-semibold text-navy">Editar Despesa</h1>
+      <h1 className="mb-8 font-display text-2xl font-semibold text-navy">Nova Receita</h1>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
@@ -95,6 +92,7 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
             id="descricao"
             type="text"
             required
+            placeholder="Ex: Consultoria avulsa - Cliente X"
             value={descricao}
             onChange={(e) => setDescricao(e.target.value)}
             className={inputClasses}
@@ -108,10 +106,9 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
             </label>
             <SelectCategoria
               id="categoria"
-              tipo="despesa"
+              tipo="receita"
               value={categoriaId}
               onChange={setCategoriaId}
-              nomeInicial={despesa.categorias_financeiras?.nome}
               className={inputClasses}
             />
           </div>
@@ -160,14 +157,14 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
           </div>
 
           <div>
-            <label htmlFor="dataPagamento" className={labelClasses}>
-              Data de pagamento
+            <label htmlFor="dataRecebimento" className={labelClasses}>
+              Data de recebimento
             </label>
             <input
-              id="dataPagamento"
+              id="dataRecebimento"
               type="date"
-              value={dataPagamento}
-              onChange={(e) => setDataPagamento(e.target.value)}
+              value={dataRecebimento}
+              onChange={(e) => setDataRecebimento(e.target.value)}
               className={inputClasses}
             />
           </div>
@@ -180,7 +177,7 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
           <textarea
             id="observacao"
             rows={3}
-            placeholder="Ex: pago via PIX, banco X, referente à NF 1234"
+            placeholder="Ex: recebido via PIX, referente ao contrato Y"
             value={observacao}
             onChange={(e) => setObservacao(e.target.value)}
             className={`${inputClasses} resize-y`}
@@ -194,7 +191,7 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
           disabled={loading}
           className="mt-2 inline-flex items-center gap-2 rounded-[3px] bg-lime px-5 py-2.5 text-sm font-semibold text-navy transition duration-200 hover:-translate-y-px hover:bg-lime-bright hover:shadow-[0_6px_16px_rgba(141,198,63,0.4)] disabled:opacity-60"
         >
-          {loading ? 'Salvando...' : 'Salvar alterações'}
+          {loading ? 'Salvando...' : 'Salvar receita'}
         </button>
       </form>
     </div>

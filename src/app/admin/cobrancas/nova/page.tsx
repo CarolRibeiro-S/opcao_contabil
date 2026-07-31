@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SelectCliente from '@/components/admin/SelectCliente'
+import CampoMoeda from '@/components/shared/CampoMoeda'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -19,7 +20,7 @@ export default function NovaCobrancaPage() {
   const [clienteId, setClienteId] = useState('')
   const [descricao, setDescricao] = useState('')
   const [competencia, setCompetencia] = useState('')
-  const [valor, setValor] = useState('')
+  const [valor, setValor] = useState<number | null>(null)
   const [dataVencimento, setDataVencimento] = useState('')
 
   const [error, setError] = useState('')
@@ -34,7 +35,7 @@ export default function NovaCobrancaPage() {
       cliente_id: clienteId || null,
       descricao,
       competencia: competencia ? `${competencia}-01` : null,
-      valor: valor ? Number(valor) : null,
+      valor,
       data_vencimento: dataVencimento || null,
       status: 'em_aberto',
     })
@@ -102,14 +103,11 @@ export default function NovaCobrancaPage() {
             <label htmlFor="valor" className={labelClasses}>
               Valor
             </label>
-            <input
+            <CampoMoeda
               id="valor"
-              type="number"
-              step="0.01"
-              min="0"
               required
-              value={valor}
-              onChange={(e) => setValor(e.target.value)}
+              valor={valor}
+              onChange={setValor}
               className={inputClasses}
             />
           </div>

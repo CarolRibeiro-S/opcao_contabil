@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MODULOS_ADMIN } from '@/lib/constants/modulosAdmin'
+import CampoTelefone from '@/components/shared/CampoTelefone'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -116,13 +117,7 @@ export default function EditarEquipeForm({ membro }: { membro: Membro }) {
             <label htmlFor="telefone" className={labelClasses}>
               Telefone
             </label>
-            <input
-              id="telefone"
-              type="text"
-              value={telefone}
-              onChange={(e) => setTelefone(e.target.value)}
-              className={inputClasses}
-            />
+            <CampoTelefone id="telefone" valor={telefone} onChange={setTelefone} className={inputClasses} />
           </div>
 
           <div>

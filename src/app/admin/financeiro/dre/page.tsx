@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { ICONES } from '@/components/shared/icons'
-import { CATEGORIAS_DESPESA, CATEGORIA_COR_GRAFICO } from '@/lib/constants/despesas'
+import { obterEstiloCategoria } from '@/lib/constants/despesas'
+import DRELinhaExpansivel, { type LancamentoDRE } from '@/components/admin/DRELinhaExpansivel'
+import AdicionarCategoriaDRE from '@/components/admin/AdicionarCategoriaDRE'
 
 const NOMES_MESES = [
   'Janeiro',
@@ -20,8 +22,38 @@ const NOMES_MESES = [
 const cardClasses =
   'rounded-lg border border-rule bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md'
 
-type CobrancaResumo = { competencia: string | null; valor: number | null }
-type DespesaResumo = { competencia: string | null; categoria: string; valor: number | null }
+type CategoriaFinanceira = { id: string; nome: string; tipo: string }
+
+type ReceitaResumo = {
+  id: string
+  descricao: string
+  categoria_id: string | null
+  categorias_financeiras: { nome: string } | null
+  valor: number | null
+  competencia: string | null
+  data_vencimento: string | null
+  data_recebimento: string | null
+  observacao: string | null
+}
+
+type DespesaResumo = {
+  id: string
+  descricao: string
+  categoria_id: string | null
+  categorias_financeiras: { nome: string } | null
+  valor: number | null
+  competencia: string | null
+  data_vencimento: string | null
+  data_pagamento: string | null
+  observacao: string | null
+}
+
+type CategoriaDRE = {
+  id: string
+  nome: string
+  total: number
+  lancamentos: LancamentoDRE[]
+}
 
 function formatarValor(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -59,6 +91,64 @@ function IconeCard({ chave, className }: { chave: keyof typeof ICONES; className
   return <Icon className={className ?? 'h-5 w-5'} />
 }
 
+function despesaParaLancamento(despesa: DespesaResumo): LancamentoDRE {
+  return {
+    id: despesa.id,
+    descricao: despesa.descricao,
+    valor: despesa.valor ?? 0,
+    dataVencimento: despesa.data_vencimento,
+    dataSecundaria: despesa.data_pagamento,
+    observacao: despesa.observacao,
+    editarHref: `/admin/financeiro/despesas/${despesa.id}/editar`,
+  }
+}
+
+function receitaParaLancamento(receita: ReceitaResumo): LancamentoDRE {
+  return {
+    id: receita.id,
+    descricao: receita.descricao,
+    valor: receita.valor ?? 0,
+    dataVencimento: receita.data_vencimento,
+    dataSecundaria: receita.data_recebimento,
+    observacao: receita.observacao,
+    editarHref: `/admin/financeiro/receitas/${receita.id}/editar`,
+  }
+}
+
+// Agrupa lançamentos por categoria pra montar as linhas expansíveis do DRE.
+// Recebe a lista de categorias já cadastradas (categoriasBase) como ponto de
+// partida — é isso que garante que uma categoria recém-criada, ainda sem
+// nenhum lançamento na competência, apareça na lista mesmo assim (com
+// R$ 0,00), em vez de só surgir quando o primeiro lançamento for feito nela.
+function agruparPorCategoria<
+  T extends { categoria_id: string | null; categorias_financeiras: { nome: string } | null },
+>(categoriasBase: CategoriaFinanceira[], itens: T[], paraLancamento: (item: T) => LancamentoDRE): CategoriaDRE[] {
+  const mapa = new Map<string, CategoriaDRE>()
+
+  for (const categoria of categoriasBase) {
+    mapa.set(categoria.id, { id: categoria.id, nome: categoria.nome, total: 0, lancamentos: [] })
+  }
+
+  for (const item of itens) {
+    const chave = item.categoria_id ?? 'sem-categoria'
+    if (!mapa.has(chave)) {
+      mapa.set(chave, {
+        id: chave,
+        nome: item.categorias_financeiras?.nome ?? 'Sem categoria',
+        total: 0,
+        lancamentos: [],
+      })
+    }
+
+    const entrada = mapa.get(chave)!
+    const lancamento = paraLancamento(item)
+    entrada.total += lancamento.valor
+    entrada.lancamentos.push(lancamento)
+  }
+
+  return Array.from(mapa.values()).sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome, 'pt-BR'))
+}
+
 export default async function DrePage({
   searchParams,
 }: {
@@ -79,47 +169,68 @@ export default async function DrePage({
 
   const supabase = await createClient()
 
-  const [{ data: cobrancasJanela }, { data: despesasJanela }] = await Promise.all([
+  const [{ data: categoriasTodas }, { data: receitasJanela }, { data: despesasJanela }] = await Promise.all([
     supabase
-      .from('cobrancas')
-      .select('competencia, valor')
-      .eq('status', 'pago')
+      .from('categorias_financeiras')
+      .select('id, nome, tipo')
+      .order('nome', { ascending: true })
+      .returns<CategoriaFinanceira[]>(),
+    supabase
+      .from('receitas')
+      .select(
+        'id, descricao, categoria_id, categorias_financeiras(nome), valor, competencia, data_vencimento, data_recebimento, observacao'
+      )
+      .eq('status', 'recebido')
       .gte('competencia', inicioJanela)
       .lte('competencia', fimJanela)
-      .returns<CobrancaResumo[]>(),
+      .returns<ReceitaResumo[]>(),
     supabase
       .from('despesas')
-      .select('competencia, categoria, valor')
+      .select(
+        'id, descricao, categoria_id, categorias_financeiras(nome), valor, competencia, data_vencimento, data_pagamento, observacao'
+      )
       .gte('competencia', inicioJanela)
       .lte('competencia', fimJanela)
       .returns<DespesaResumo[]>(),
   ])
 
+  const categoriasReceitaBase = (categoriasTodas ?? []).filter(
+    (categoria) => categoria.tipo === 'receita' || categoria.tipo === 'ambos'
+  )
+  const categoriasDespesaBase = (categoriasTodas ?? []).filter(
+    (categoria) => categoria.tipo === 'despesa' || categoria.tipo === 'ambos'
+  )
+
+  // Séries mensais (últimos 6 meses) pro gráfico de barras — somam todos os
+  // lançamentos da janela, independente de categoria.
   const receitaPorMes = new Map<string, number>()
-  for (const cobranca of cobrancasJanela ?? []) {
-    if (!cobranca.competencia) continue
-    const chave = cobranca.competencia.slice(0, 7)
-    receitaPorMes.set(chave, (receitaPorMes.get(chave) ?? 0) + (cobranca.valor ?? 0))
+  for (const receita of receitasJanela ?? []) {
+    if (!receita.competencia) continue
+    const chave = receita.competencia.slice(0, 7)
+    receitaPorMes.set(chave, (receitaPorMes.get(chave) ?? 0) + (receita.valor ?? 0))
   }
 
   const despesaPorMes = new Map<string, number>()
-  const despesaPorCategoriaNoMes = new Map<string, number>()
-
   for (const despesa of despesasJanela ?? []) {
     if (!despesa.competencia) continue
     const chave = despesa.competencia.slice(0, 7)
     despesaPorMes.set(chave, (despesaPorMes.get(chave) ?? 0) + (despesa.valor ?? 0))
-
-    if (chave === competenciaSelecionada) {
-      despesaPorCategoriaNoMes.set(
-        despesa.categoria,
-        (despesaPorCategoriaNoMes.get(despesa.categoria) ?? 0) + (despesa.valor ?? 0)
-      )
-    }
   }
 
-  const receitaMes = receitaPorMes.get(competenciaSelecionada) ?? 0
-  const totalDespesasMes = despesaPorMes.get(competenciaSelecionada) ?? 0
+  // Lançamentos só da competência selecionada, agrupados por categoria —
+  // base das seções expansíveis de Receitas e Despesas Operacionais.
+  const receitasMes = (receitasJanela ?? []).filter(
+    (receita) => receita.competencia?.slice(0, 7) === competenciaSelecionada
+  )
+  const despesasMes = (despesasJanela ?? []).filter(
+    (despesa) => despesa.competencia?.slice(0, 7) === competenciaSelecionada
+  )
+
+  const categoriasReceitaDRE = agruparPorCategoria(categoriasReceitaBase, receitasMes, receitaParaLancamento)
+  const categoriasDespesaDRE = agruparPorCategoria(categoriasDespesaBase, despesasMes, despesaParaLancamento)
+
+  const receitaMes = categoriasReceitaDRE.reduce((soma, categoria) => soma + categoria.total, 0)
+  const totalDespesasMes = categoriasDespesaDRE.reduce((soma, categoria) => soma + categoria.total, 0)
   const resultadoMes = receitaMes - totalDespesasMes
   const resultadoPositivo = resultadoMes >= 0
 
@@ -139,25 +250,24 @@ export default async function DrePage({
   const larguraBarra = 20
 
   // Donut de categorias: mesma técnica de arcos sobrepostos via
-  // stroke-dasharray usada no card de Adimplência do Dashboard.
+  // stroke-dasharray usada no card de Adimplência do Dashboard. Só entram
+  // categorias com lançamento de fato na competência — categoria zerada não
+  // rende fatia.
   const raioDonut = 34
   const circunferenciaDonut = 2 * Math.PI * raioDonut
 
-  const categoriasComArco = CATEGORIAS_DESPESA.map((categoria) => {
-    const valor = despesaPorCategoriaNoMes.get(categoria.chave) ?? 0
-    const percentual = totalDespesasMes > 0 ? valor / totalDespesasMes : 0
-    const comprimentoArco = percentual * circunferenciaDonut
-    return { ...categoria, valor, percentual, comprimentoArco }
-  })
+  const categoriasComArco = categoriasDespesaDRE
+    .filter((categoria) => categoria.total > 0)
+    .map((categoria) => {
+      const percentual = totalDespesasMes > 0 ? categoria.total / totalDespesasMes : 0
+      const comprimentoArco = percentual * circunferenciaDonut
+      return { ...categoria, percentual, comprimentoArco, ...obterEstiloCategoria(categoria.nome) }
+    })
 
-  const fatiasDonut = categoriasComArco
-    .map((fatia, index) => ({
-      ...fatia,
-      offset: categoriasComArco
-        .slice(0, index)
-        .reduce((soma, anterior) => soma + anterior.comprimentoArco, 0),
-    }))
-    .filter((fatia) => fatia.valor > 0)
+  const fatiasDonut = categoriasComArco.map((fatia, index) => ({
+    ...fatia,
+    offset: categoriasComArco.slice(0, index).reduce((soma, anterior) => soma + anterior.comprimentoArco, 0),
+  }))
 
   return (
     <div>
@@ -239,46 +349,83 @@ export default async function DrePage({
         </div>
       </div>
 
-      <div className={`${cardClasses} mb-8`}>
+      <div className={`${cardClasses} mb-6`}>
         <div className="flex items-center justify-between border-b border-rule pb-3">
-          <span className="font-display text-base font-semibold text-navy">Receita Bruta (Honorários)</span>
+          <span className="font-display text-base font-semibold text-navy">Receitas</span>
           <span className="font-mono text-base font-semibold text-navy">{formatarValor(receitaMes)}</span>
         </div>
 
-        <div className="mt-4">
-          <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-            (-) Despesas Operacionais
-          </p>
-          <ul className="divide-y divide-rule">
-            {CATEGORIAS_DESPESA.map((categoria) => (
-              <li key={categoria.chave} className="flex items-center justify-between py-2 pl-4 text-sm">
-                <span className="text-charcoal">{categoria.label}</span>
-                <span className="font-mono text-charcoal">
-                  {formatarValor(despesaPorCategoriaNoMes.get(categoria.chave) ?? 0)}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-2 flex items-center justify-between border-t border-rule pt-3 pl-4 text-sm font-semibold">
-            <span className="text-navy">Total de Despesas</span>
-            <span className="font-mono text-navy">{formatarValor(totalDespesasMes)}</span>
-          </div>
+        <ul className="mt-1 divide-y divide-rule pl-3">
+          {categoriasReceitaDRE.length === 0 ? (
+            <li className="py-3 text-sm text-navy-soft">Nenhuma categoria de receita cadastrada ainda.</li>
+          ) : (
+            categoriasReceitaDRE.map((categoria) => (
+              <DRELinhaExpansivel
+                key={categoria.id}
+                nome={categoria.nome}
+                total={categoria.total}
+                lancamentos={categoria.lancamentos}
+                badgeClasses={obterEstiloCategoria(categoria.nome).badgeClasses}
+                labelDataSecundaria="Recebimento"
+              />
+            ))
+          )}
+        </ul>
+
+        <div className="mt-2 pl-3">
+          <AdicionarCategoriaDRE tipo="receita" />
         </div>
 
-        <div
-          className={`mt-5 flex items-center justify-between rounded-lg px-4 py-3.5 ${
-            resultadoPositivo ? 'bg-[#eef7e0]' : 'bg-red-50'
-          }`}
-        >
-          <span className="font-display text-base font-semibold text-navy">Resultado do Mês</span>
-          <span
-            className={`font-display text-xl font-bold ${
-              resultadoPositivo ? 'text-[#4f8f2a]' : 'text-red-600'
-            }`}
-          >
-            {formatarValor(resultadoMes)}
-          </span>
+        <div className="mt-3 flex items-center justify-between border-t border-rule pt-3 pl-3 text-sm font-semibold">
+          <span className="text-navy">Receita Bruta Total</span>
+          <span className="font-mono text-navy">{formatarValor(receitaMes)}</span>
         </div>
+      </div>
+
+      <div className={`${cardClasses} mb-6`}>
+        <div className="flex items-center justify-between border-b border-rule pb-3">
+          <span className="font-display text-base font-semibold text-navy">Despesas Operacionais</span>
+          <span className="font-mono text-base font-semibold text-navy">{formatarValor(totalDespesasMes)}</span>
+        </div>
+
+        <ul className="mt-1 divide-y divide-rule pl-3">
+          {categoriasDespesaDRE.length === 0 ? (
+            <li className="py-3 text-sm text-navy-soft">Nenhuma categoria de despesa cadastrada ainda.</li>
+          ) : (
+            categoriasDespesaDRE.map((categoria) => (
+              <DRELinhaExpansivel
+                key={categoria.id}
+                nome={categoria.nome}
+                total={categoria.total}
+                lancamentos={categoria.lancamentos}
+                badgeClasses={obterEstiloCategoria(categoria.nome).badgeClasses}
+                labelDataSecundaria="Pagamento"
+              />
+            ))
+          )}
+        </ul>
+
+        <div className="mt-2 pl-3">
+          <AdicionarCategoriaDRE tipo="despesa" />
+        </div>
+
+        <div className="mt-3 flex items-center justify-between border-t border-rule pt-3 pl-3 text-sm font-semibold">
+          <span className="text-navy">Total de Despesas</span>
+          <span className="font-mono text-navy">{formatarValor(totalDespesasMes)}</span>
+        </div>
+      </div>
+
+      <div
+        className={`mb-8 flex items-center justify-between rounded-lg px-5 py-4 shadow-sm ${
+          resultadoPositivo ? 'bg-[#eef7e0]' : 'bg-red-50'
+        }`}
+      >
+        <span className="font-display text-base font-semibold text-navy">Resultado do Mês</span>
+        <span
+          className={`font-display text-xl font-bold ${resultadoPositivo ? 'text-[#4f8f2a]' : 'text-red-600'}`}
+        >
+          {formatarValor(resultadoMes)}
+        </span>
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
@@ -348,12 +495,12 @@ export default async function DrePage({
               <svg viewBox="0 0 96 96" className="h-24 w-24 shrink-0 -rotate-90">
                 {fatiasDonut.map((fatia) => (
                   <circle
-                    key={fatia.chave}
+                    key={fatia.nome}
                     cx="48"
                     cy="48"
                     r={raioDonut}
                     fill="none"
-                    stroke={CATEGORIA_COR_GRAFICO[fatia.chave]}
+                    stroke={fatia.cor}
                     strokeWidth="12"
                     strokeDasharray={`${fatia.comprimentoArco} ${circunferenciaDonut - fatia.comprimentoArco}`}
                     strokeDashoffset={-fatia.offset}
@@ -363,13 +510,10 @@ export default async function DrePage({
 
               <ul className="flex min-w-0 flex-1 flex-col gap-1.5">
                 {fatiasDonut.map((fatia) => (
-                  <li key={fatia.chave} className="flex items-center justify-between gap-2 text-xs">
+                  <li key={fatia.nome} className="flex items-center justify-between gap-2 text-xs">
                     <span className="flex min-w-0 items-center gap-1.5">
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: CATEGORIA_COR_GRAFICO[fatia.chave] }}
-                      />
-                      <span className="truncate text-navy-soft">{fatia.label}</span>
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: fatia.cor }} />
+                      <span className="truncate text-navy-soft">{fatia.nome}</span>
                     </span>
                     <span className="shrink-0 font-mono text-navy">
                       {Math.round(fatia.percentual * 100)}%

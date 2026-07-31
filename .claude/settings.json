@@ -109,12 +109,21 @@
       "Bash(curl -s -o /dev/null -w \"financeiro: %{http_code}\\\\n\" http://localhost:3000/admin/financeiro)",
       "Bash(tail -n 60 /tmp/dev-financeiro-final.log)",
       "Bash(curl -s -o /dev/null -w \"port 3001 financeiro: %{http_code}\\\\n\" http://localhost:3001/admin/financeiro)",
-      "Bash(powershell -Command \"Stop-Process -Id 14660 -Force\")"
+      "Bash(powershell -Command \"Stop-Process -Id 14660 -Force\")",
+      "Bash(curl -s -o /dev/null -w \"login: %{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\anaca\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-anaca-OneDrive--rea-de-Trabalho-Carol-ENGENHARIA-DE-SOFTWARE-DEV-PROJECTS-FREELAS-PROJETOS-EM-ANDAMENTO-OP--O-CONTABIL-OPCAO-CONTABIL\\\\5a6c5f34-6e0d-42a0-be5d-5c48b9326b46\\\\scratchpad\\\\stop-dev.ps1\")",
+      "Bash(mkdir -p \"c:/Users/anaca/OneDrive/Área de Trabalho/Carol/ENGENHARIA DE SOFTWARE/DEV PROJECTS/FREELAS/PROJETOS EM ANDAMENTO/OPÇÃO CONTABIL/OPCAO_CONTABIL/src/app/admin/financeiro/receitas/nova\" *)",
+      "Bash(curl -s -o /dev/null -w \"receitas: %{http_code}\\\\n\" http://localhost:3000/admin/financeiro/receitas)",
+      "Bash(curl -s -o /dev/null -w \"receitas/nova: %{http_code}\\\\n\" http://localhost:3000/admin/financeiro/receitas/nova)",
+      "Bash(ls -la \"/c/Users/anaca/AppData/Local/Temp/claude/c--Users-anaca-OneDrive--rea-de-Trabalho-Carol-ENGENHARIA-DE-SOFTWARE-DEV-PROJECTS-FREELAS-PROJETOS-EM-ANDAMENTO-OP--O-CONTABIL-OPCAO-CONTABIL/5a6c5f34-6e0d-42a0-be5d-5c48b9326b46/scratchpad\")",
+      "Read(//c/Users/anaca/AppData/Local/Temp/claude/c--Users-anaca-OneDrive--rea-de-Trabalho-Carol-ENGENHARIA-DE-SOFTWARE-DEV-PROJECTS-FREELAS-PROJETOS-EM-ANDAMENTO-OP--O-CONTABIL-OPCAO-CONTABIL/5a6c5f34-6e0d-42a0-be5d-5c48b9326b46/scratchpad/**)",
+      "Bash(git stash *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\anaca\\AppData\\Local\\Temp\\claude",
       "c:\\Users\\anaca\\OneDrive\\Área de Trabalho\\Carol\\ENGENHARIA DE SOFTWARE\\DEV PROJECTS\\FREELAS\\PROJETOS EM ANDAMENTO\\OPÇÃO CONTABIL\\OPCAO_CONTABIL\\src\\app\\admin\\equipe\\[id]",
-      "c:\\Users\\anaca\\OneDrive\\Área de Trabalho\\Carol\\ENGENHARIA DE SOFTWARE\\DEV PROJECTS\\FREELAS\\PROJETOS EM ANDAMENTO\\OPÇÃO CONTABIL\\OPCAO_CONTABIL\\src\\app\\admin\\financeiro\\despesas\\[id]"
+      "c:\\Users\\anaca\\OneDrive\\Área de Trabalho\\Carol\\ENGENHARIA DE SOFTWARE\\DEV PROJECTS\\FREELAS\\PROJETOS EM ANDAMENTO\\OPÇÃO CONTABIL\\OPCAO_CONTABIL\\src\\app\\admin\\financeiro\\despesas\\[id]",
+      "c:\\Users\\anaca\\OneDrive\\Área de Trabalho\\Carol\\ENGENHARIA DE SOFTWARE\\DEV PROJECTS\\FREELAS\\PROJETOS EM ANDAMENTO\\OPÇÃO CONTABIL\\OPCAO_CONTABIL\\src\\app\\admin\\financeiro\\receitas\\[id]"
     ]
   }
 }

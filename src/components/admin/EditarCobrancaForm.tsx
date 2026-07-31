@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SelectCliente from '@/components/admin/SelectCliente'
+import CampoMoeda from '@/components/shared/CampoMoeda'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -28,7 +29,7 @@ export default function EditarCobrancaForm({ cobranca }: { cobranca: Cobranca })
   const [clienteId, setClienteId] = useState(cobranca.cliente_id ?? '')
   const [descricao, setDescricao] = useState(cobranca.descricao ?? '')
   const [competencia, setCompetencia] = useState(cobranca.competencia?.slice(0, 7) ?? '')
-  const [valor, setValor] = useState(cobranca.valor !== null ? String(cobranca.valor) : '')
+  const [valor, setValor] = useState<number | null>(cobranca.valor)
   const [dataVencimento, setDataVencimento] = useState(cobranca.data_vencimento ?? '')
 
   const [error, setError] = useState('')
@@ -45,7 +46,7 @@ export default function EditarCobrancaForm({ cobranca }: { cobranca: Cobranca })
         cliente_id: clienteId || null,
         descricao,
         competencia: competencia ? `${competencia}-01` : null,
-        valor: valor ? Number(valor) : null,
+        valor,
         data_vencimento: dataVencimento || null,
       })
       .eq('id', cobranca.id)
@@ -113,14 +114,11 @@ export default function EditarCobrancaForm({ cobranca }: { cobranca: Cobranca })
             <label htmlFor="valor" className={labelClasses}>
               Valor
             </label>
-            <input
+            <CampoMoeda
               id="valor"
-              type="number"
-              step="0.01"
-              min="0"
               required
-              value={valor}
-              onChange={(e) => setValor(e.target.value)}
+              valor={valor}
+              onChange={setValor}
               className={inputClasses}
             />
           </div>

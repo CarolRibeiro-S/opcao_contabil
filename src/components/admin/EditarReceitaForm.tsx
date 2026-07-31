@@ -10,10 +10,12 @@ import CampoMoeda from '@/components/shared/CampoMoeda'
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
 
+const inputDesabilitadoClasses = `${inputClasses} cursor-not-allowed opacity-60`
+
 const labelClasses =
   'mb-[7px] block font-mono text-[11px] uppercase tracking-[0.1em] text-navy-soft'
 
-export type Despesa = {
+export type Receita = {
   id: string
   descricao: string
   categoria_id: string | null
@@ -21,21 +23,24 @@ export type Despesa = {
   valor: number | null
   competencia: string | null
   data_vencimento: string | null
-  data_pagamento: string | null
+  data_recebimento: string | null
   observacao: string | null
+  origem: string
 }
 
-export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
+export default function EditarReceitaForm({ receita }: { receita: Receita }) {
   const router = useRouter()
   const supabase = createClient()
 
-  const [descricao, setDescricao] = useState(despesa.descricao)
-  const [categoriaId, setCategoriaId] = useState(despesa.categoria_id ?? '')
-  const [valor, setValor] = useState<number | null>(despesa.valor)
-  const [competencia, setCompetencia] = useState(despesa.competencia?.slice(0, 7) ?? '')
-  const [dataVencimento, setDataVencimento] = useState(despesa.data_vencimento ?? '')
-  const [dataPagamento, setDataPagamento] = useState(despesa.data_pagamento ?? '')
-  const [observacao, setObservacao] = useState(despesa.observacao ?? '')
+  const geradaPorHonorario = receita.origem === 'honorario'
+
+  const [descricao, setDescricao] = useState(receita.descricao)
+  const [categoriaId, setCategoriaId] = useState(receita.categoria_id ?? '')
+  const [valor, setValor] = useState<number | null>(receita.valor)
+  const [competencia, setCompetencia] = useState(receita.competencia?.slice(0, 7) ?? '')
+  const [dataVencimento, setDataVencimento] = useState(receita.data_vencimento ?? '')
+  const [dataRecebimento, setDataRecebimento] = useState(receita.data_recebimento ?? '')
+  const [observacao, setObservacao] = useState(receita.observacao ?? '')
 
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -44,7 +49,7 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
     event.preventDefault()
     setError('')
 
-    if (!categoriaId) {
+    if (!geradaPorHonorario && !categoriaId) {
       setError('Selecione (ou crie) uma categoria.')
       return
     }
@@ -52,18 +57,21 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
     setLoading(true)
 
     const { error: updateError } = await supabase
-      .from('despesas')
+      .from('receitas')
       .update({
-        descricao,
-        categoria_id: categoriaId,
-        valor,
+        // Descrição/categoria/valor não entram aqui quando a receita veio de
+        // um honorário — permanecem com o que já estava salvo, refletindo o
+        // honorário original.
+        ...(geradaPorHonorario
+          ? {}
+          : { descricao, categoria_id: categoriaId, valor }),
         competencia: competencia ? `${competencia}-01` : null,
         data_vencimento: dataVencimento || null,
-        data_pagamento: dataPagamento || null,
+        data_recebimento: dataRecebimento || null,
         observacao: observacao || null,
-        status: dataPagamento ? 'pago' : 'em_aberto',
+        status: dataRecebimento ? 'recebido' : 'a_receber',
       })
-      .eq('id', despesa.id)
+      .eq('id', receita.id)
 
     if (updateError) {
       setError('Não foi possível salvar as alterações. Tente novamente.')
@@ -71,22 +79,32 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
       return
     }
 
-    router.push('/admin/financeiro/despesas')
+    router.push('/admin/financeiro/receitas')
     router.refresh()
   }
 
   return (
     <div className="max-w-2xl">
       <Link
-        href="/admin/financeiro/despesas"
+        href="/admin/financeiro/receitas"
         className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-navy-soft transition-colors duration-200 hover:text-navy"
       >
         ← Voltar
       </Link>
 
-      <h1 className="mb-8 font-display text-2xl font-semibold text-navy">Editar Despesa</h1>
+      <h1 className="mb-2 font-display text-2xl font-semibold text-navy">Editar Receita</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      {geradaPorHonorario && (
+        <p className="mb-6 rounded-lg border border-navy/15 bg-navy/5 px-3.5 py-2.5 text-sm text-navy-soft">
+          Gerado automaticamente a partir de um honorário pago — edite o honorário original em{' '}
+          <Link href="/admin/cobrancas" className="font-semibold text-navy underline underline-offset-2">
+            Honorários Contábeis
+          </Link>{' '}
+          para alterar descrição, categoria ou valor.
+        </p>
+      )}
+
+      <form onSubmit={handleSubmit} className={`space-y-5 ${geradaPorHonorario ? '' : 'mt-8'}`}>
         <div>
           <label htmlFor="descricao" className={labelClasses}>
             Descrição
@@ -95,9 +113,10 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
             id="descricao"
             type="text"
             required
+            disabled={geradaPorHonorario}
             value={descricao}
             onChange={(e) => setDescricao(e.target.value)}
-            className={inputClasses}
+            className={geradaPorHonorario ? inputDesabilitadoClasses : inputClasses}
           />
         </div>
 
@@ -106,14 +125,23 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
             <label htmlFor="categoria" className={labelClasses}>
               Categoria
             </label>
-            <SelectCategoria
-              id="categoria"
-              tipo="despesa"
-              value={categoriaId}
-              onChange={setCategoriaId}
-              nomeInicial={despesa.categorias_financeiras?.nome}
-              className={inputClasses}
-            />
+            {geradaPorHonorario ? (
+              <input
+                type="text"
+                disabled
+                value={receita.categorias_financeiras?.nome ?? 'Sem categoria'}
+                className={inputDesabilitadoClasses}
+              />
+            ) : (
+              <SelectCategoria
+                id="categoria"
+                tipo="receita"
+                value={categoriaId}
+                onChange={setCategoriaId}
+                nomeInicial={receita.categorias_financeiras?.nome}
+                className={inputClasses}
+              />
+            )}
           </div>
 
           <div>
@@ -123,9 +151,10 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
             <CampoMoeda
               id="valor"
               required
+              disabled={geradaPorHonorario}
               valor={valor}
               onChange={setValor}
-              className={inputClasses}
+              className={geradaPorHonorario ? inputDesabilitadoClasses : inputClasses}
             />
           </div>
         </div>
@@ -160,14 +189,14 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
           </div>
 
           <div>
-            <label htmlFor="dataPagamento" className={labelClasses}>
-              Data de pagamento
+            <label htmlFor="dataRecebimento" className={labelClasses}>
+              Data de recebimento
             </label>
             <input
-              id="dataPagamento"
+              id="dataRecebimento"
               type="date"
-              value={dataPagamento}
-              onChange={(e) => setDataPagamento(e.target.value)}
+              value={dataRecebimento}
+              onChange={(e) => setDataRecebimento(e.target.value)}
               className={inputClasses}
             />
           </div>
@@ -180,7 +209,7 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
           <textarea
             id="observacao"
             rows={3}
-            placeholder="Ex: pago via PIX, banco X, referente à NF 1234"
+            placeholder="Ex: recebido via PIX, referente ao contrato Y"
             value={observacao}
             onChange={(e) => setObservacao(e.target.value)}
             className={`${inputClasses} resize-y`}

@@ -32,8 +32,11 @@ const statusLabel: Record<string, string> = {
   concluido: 'Concluído',
 }
 
+// created_at vem em UTC do banco (timestamptz); precisa converter pro fuso
+// de Brasília explicitamente, senão o dia exibido pode variar conforme o
+// fuso do servidor — mesmo cuidado já usado em formatarDataHora (histórico).
 function formatarData(data: string) {
-  return new Date(data).toLocaleDateString('pt-BR')
+  return new Date(data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
 }
 
 export default async function PortalComunicadosPage() {

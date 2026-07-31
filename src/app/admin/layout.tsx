@@ -55,7 +55,9 @@ const navLinks: SidebarLink[] = [
     label: 'Financeiro',
     icon: 'financeiro',
     subLinks: [
+      { href: '/admin/financeiro/dashboard', label: 'Dashboard' },
       { href: '/admin/financeiro/despesas', label: 'Despesas' },
+      { href: '/admin/financeiro/receitas', label: 'Receitas' },
       { href: '/admin/financeiro/dre', label: 'DRE' },
     ],
   },
