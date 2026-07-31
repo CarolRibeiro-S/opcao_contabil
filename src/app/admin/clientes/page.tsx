@@ -9,7 +9,7 @@ export default async function ClientesPage() {
   const { data: clientes } = await supabase
     .from('clientes')
     .select(
-      'id, codigo_interno, cnpj_cpf, nome_empresa, tipo, segmento, status, responsavel, telefone, regime_tributario'
+      'id, codigo_interno, cnpj_cpf, nome_empresa, tipo, segmento, status, responsavel, telefone, regime_tributario, profile_id'
     )
     .order('nome_empresa', { ascending: true })
 

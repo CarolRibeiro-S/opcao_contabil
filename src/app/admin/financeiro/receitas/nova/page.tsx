@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SelectCategoria from '@/components/admin/SelectCategoria'
 import CampoMoeda from '@/components/shared/CampoMoeda'
+import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -49,24 +50,39 @@ export default function NovaReceitaPage() {
       return
     }
 
-    const { error: insertError } = await supabase.from('receitas').insert({
-      descricao,
-      categoria_id: categoriaId,
-      valor,
-      competencia: competencia ? `${competencia}-01` : null,
-      data_vencimento: dataVencimento || null,
-      data_recebimento: dataRecebimento || null,
-      observacao: observacao || null,
-      status: dataRecebimento ? 'recebido' : 'a_receber',
-      origem: 'manual',
-      criado_por: user.id,
-    })
+    const { data: receita, error: insertError } = await supabase
+      .from('receitas')
+      .insert({
+        descricao,
+        categoria_id: categoriaId,
+        valor,
+        competencia: competencia ? `${competencia}-01` : null,
+        data_vencimento: dataVencimento || null,
+        data_recebimento: dataRecebimento || null,
+        observacao: observacao || null,
+        status: dataRecebimento ? 'recebido' : 'a_receber',
+        origem: 'manual',
+        criado_por: user.id,
+      })
+      .select('id')
+      .single()
 
-    if (insertError) {
+    if (insertError || !receita) {
       setError('Não foi possível salvar a receita. Tente novamente.')
       setLoading(false)
       return
     }
+
+    // origem é sempre 'manual' aqui (é o cadastro manual) — receitas
+    // espelhadas de honorário são criadas por sincronizarReceitaDoHonorario()
+    // em receitaHonorario.ts, que não passa por essa tela e não registra
+    // 'criou' de propósito (não é uma ação manual do admin).
+    registrarHistoricoAtividade({
+      acao: 'criou',
+      entidade: 'receita',
+      entidadeId: receita.id,
+      entidadeNome: descricao,
+    })
 
     router.push('/admin/financeiro/receitas')
     router.refresh()

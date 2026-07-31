@@ -90,7 +90,7 @@ export default async function TarefasPage() {
                   </td>
                   <td className="px-4 py-3 text-charcoal">{formatarData(tarefa.data_limite)}</td>
                   <td className="px-4 py-3">
-                    <AvancarStatusTarefa id={tarefa.id} status={tarefa.status} />
+                    <AvancarStatusTarefa id={tarefa.id} titulo={tarefa.titulo} status={tarefa.status} />
                   </td>
                 </tr>
               ))}

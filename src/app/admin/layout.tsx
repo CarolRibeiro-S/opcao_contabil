@@ -51,6 +51,12 @@ const navLinks: SidebarLink[] = [
     subLinks: [{ href: '/admin/cobrancas/nova', label: 'Novo honorário' }],
   },
   {
+    href: '/admin/comunicados',
+    label: 'Comunicados',
+    icon: 'comunicados',
+    subLinks: [{ href: '/admin/comunicados/novo', label: 'Novo comunicado' }],
+  },
+  {
     href: '/admin/financeiro',
     label: 'Financeiro',
     icon: 'financeiro',

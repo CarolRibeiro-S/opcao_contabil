@@ -220,7 +220,12 @@ export default async function ReceitasPage({
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <AcoesReceita id={receita.id} status={receita.status} origem={receita.origem} />
+                        <AcoesReceita
+                          id={receita.id}
+                          status={receita.status}
+                          origem={receita.origem}
+                          descricao={receita.descricao}
+                        />
                       </td>
                     </tr>
                   )

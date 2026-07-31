@@ -8,9 +8,10 @@ import { SEGMENTOS } from '@/lib/constants/segmentos'
 import ProfissionaisEditor from '@/components/admin/ProfissionaisEditor'
 import AnexosInput from '@/components/admin/AnexosInput'
 import ComunicadosCliente from '@/components/admin/ComunicadosCliente'
-import { registrarHistoricoCliente } from '@/lib/historicoCliente'
+import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 import CampoDocumento from '@/components/shared/CampoDocumento'
 import CampoTelefone from '@/components/shared/CampoTelefone'
+import ConvidarClientePortal from '@/components/admin/ConvidarClientePortal'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -32,6 +33,7 @@ type Cliente = {
   telefone: string | null
   observacoes: string | null
   status: string
+  profile_id: string | null
 }
 
 type Documento = {
@@ -108,7 +110,7 @@ export default function EditarClienteForm({
       return
     }
 
-    registrarHistoricoCliente({
+    registrarHistoricoAtividade({
       acao: 'editou',
       entidade: 'cliente',
       entidadeId: cliente.id,
@@ -180,7 +182,10 @@ export default function EditarClienteForm({
         ← Voltar
       </Link>
 
-      <h1 className="mb-8 font-display text-2xl font-semibold text-navy">Editar Cliente</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-display text-2xl font-semibold text-navy">Editar Cliente</h1>
+        <ConvidarClientePortal clienteId={cliente.id} temAcesso={!!cliente.profile_id} />
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
@@ -426,7 +431,7 @@ export default function EditarClienteForm({
         </button>
       </form>
 
-      <ComunicadosCliente clienteId={cliente.id} />
+      <ComunicadosCliente clienteId={cliente.id} nomeCliente={cliente.nome_empresa} />
     </div>
   )
 }

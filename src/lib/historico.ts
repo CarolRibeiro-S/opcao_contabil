@@ -1,13 +1,55 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 
-// Cobre só Clientes nesta primeira etapa. Outros módulos (Tarefas, Prazos,
-// Honorários, Documentos, Comunicados, Equipe) entram aqui conforme forem
-// instrumentados nas próximas etapas.
-export type AcaoHistorico = 'criou' | 'editou' | 'ativou' | 'inativou' | 'excluiu'
-export type EntidadeHistorico = 'cliente'
+// Cobre Clientes, Tarefas, Prazos, Honorários, Despesas, Receitas,
+// Comunicados e Equipe. As ações abaixo espelham a constraint já existente
+// na coluna historico_atividades.acao.
+export type AcaoHistorico =
+  | 'criou'
+  | 'editou'
+  | 'ativou'
+  | 'inativou'
+  | 'excluiu'
+  | 'anexou_documento'
+  | 'enviou_comunicado'
+  | 'moveu_prazo'
+  | 'marcou_pago'
+  | 'reverteu_pagamento'
+  | 'convidou'
 
-export const ACOES_HISTORICO: AcaoHistorico[] = ['criou', 'editou', 'ativou', 'inativou', 'excluiu']
-export const ENTIDADES_HISTORICO: EntidadeHistorico[] = ['cliente']
+export type EntidadeHistorico =
+  | 'cliente'
+  | 'tarefa'
+  | 'prazo'
+  | 'honorario'
+  | 'despesa'
+  | 'receita'
+  | 'comunicado'
+  | 'membro_equipe'
+
+export const ACOES_HISTORICO: AcaoHistorico[] = [
+  'criou',
+  'editou',
+  'ativou',
+  'inativou',
+  'excluiu',
+  'anexou_documento',
+  'enviou_comunicado',
+  'moveu_prazo',
+  'marcou_pago',
+  'reverteu_pagamento',
+  'convidou',
+]
+
+export const ENTIDADES_HISTORICO: EntidadeHistorico[] = [
+  'cliente',
+  'tarefa',
+  'prazo',
+  'honorario',
+  'despesa',
+  'receita',
+  'comunicado',
+  'membro_equipe',
+]
 
 type RegistrarHistoricoParams = {
   usuarioId: string

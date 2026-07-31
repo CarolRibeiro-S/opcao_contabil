@@ -1,3 +1,77 @@
+// Mensagem composta livremente pelo admin (textarea) — escapa antes de
+// interpolar no HTML pra não deixar "<"/"&" quebrarem o layout do e-mail.
+function escapeHtml(texto: string) {
+  return texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+type EmailComunicadoParams = {
+  nomeCliente: string
+  titulo: string
+  mensagem: string
+  tipo: 'aviso' | 'solicitacao_documento'
+}
+
+export function emailComunicado({ nomeCliente, titulo, mensagem, tipo }: EmailComunicadoParams) {
+  const subject = titulo
+
+  const mensagemHtml = escapeHtml(mensagem).replace(/\n/g, '<br />')
+
+  const avisoPortal =
+    tipo === 'solicitacao_documento'
+      ? `
+                <p style="margin:0 0 20px; padding:12px 16px; background-color:#f7f8f5; border-radius:6px; color:#24261f; font-size:13.5px; line-height:1.5;">
+                  Você pode responder anexando o documento direto no <strong style="color:#16234a;">Portal do Cliente</strong>, em <strong>Comunicados</strong>.
+                </p>`
+      : ''
+
+  const html = `
+<!doctype html>
+<html lang="pt-BR">
+  <body style="margin:0; padding:0; background-color:#f7f8f5; font-family: Arial, Helvetica, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f8f5; padding:32px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; border:1px solid #d8ddd0; overflow:hidden;">
+            <tr>
+              <td style="background-color:#16234a; padding:20px 28px;">
+                <span style="color:#8dc63f; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; font-family: 'Courier New', monospace;">
+                  Opção Contábil
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px;">
+                <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
+                  Olá, <strong>${escapeHtml(nomeCliente)}</strong>,
+                </p>
+                <p style="margin:0 0 14px; color:#16234a; font-size:17px; font-weight:bold; line-height:1.4;">
+                  ${escapeHtml(titulo)}
+                </p>
+                <p style="margin:0 0 20px; color:#24261f; font-size:15px; line-height:1.6;">
+                  ${mensagemHtml}
+                </p>
+                ${avisoPortal}
+                <p style="margin:0; color:#55564a; font-size:13px;">
+                  — Opção Contábil
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`.trim()
+
+  return { subject, html }
+}
+
 type EmailAlertaPrazoParams = {
   nomeCliente: string
   nomeObrigacao: string

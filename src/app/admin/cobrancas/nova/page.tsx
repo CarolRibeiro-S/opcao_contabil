@@ -6,6 +6,12 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SelectCliente from '@/components/admin/SelectCliente'
 import CampoMoeda from '@/components/shared/CampoMoeda'
+import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
+
+function formatarCompetenciaCurta(competencia: string) {
+  const [ano, mes] = competencia.split('-')
+  return `${mes}/${ano}`
+}
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -31,20 +37,31 @@ export default function NovaCobrancaPage() {
     setError('')
     setLoading(true)
 
-    const { error: insertError } = await supabase.from('cobrancas').insert({
-      cliente_id: clienteId || null,
-      descricao,
-      competencia: competencia ? `${competencia}-01` : null,
-      valor,
-      data_vencimento: dataVencimento || null,
-      status: 'em_aberto',
-    })
+    const { data: cobranca, error: insertError } = await supabase
+      .from('cobrancas')
+      .insert({
+        cliente_id: clienteId || null,
+        descricao,
+        competencia: competencia ? `${competencia}-01` : null,
+        valor,
+        data_vencimento: dataVencimento || null,
+        status: 'em_aberto',
+      })
+      .select('id, clientes(nome_empresa)')
+      .single<{ id: string; clientes: { nome_empresa: string } | null }>()
 
-    if (insertError) {
+    if (insertError || !cobranca) {
       setError('Não foi possível salvar o honorário. Tente novamente.')
       setLoading(false)
       return
     }
+
+    registrarHistoricoAtividade({
+      acao: 'criou',
+      entidade: 'honorario',
+      entidadeId: cobranca.id,
+      entidadeNome: `${cobranca.clientes?.nome_empresa ?? 'Cliente'} — ${formatarCompetenciaCurta(competencia)}`,
+    })
 
     router.push('/admin/cobrancas')
     router.refresh()

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SelectCategoria from '@/components/admin/SelectCategoria'
 import CampoMoeda from '@/components/shared/CampoMoeda'
+import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -70,6 +71,13 @@ export default function EditarDespesaForm({ despesa }: { despesa: Despesa }) {
       setLoading(false)
       return
     }
+
+    registrarHistoricoAtividade({
+      acao: 'editou',
+      entidade: 'despesa',
+      entidadeId: despesa.id,
+      entidadeNome: descricao,
+    })
 
     router.push('/admin/financeiro/despesas')
     router.refresh()

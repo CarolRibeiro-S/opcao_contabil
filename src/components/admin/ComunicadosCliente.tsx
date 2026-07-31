@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 
 type Comunicado = {
   id: string
@@ -62,7 +63,13 @@ async function buscarComunicados(clienteId: string) {
   return data ?? []
 }
 
-export default function ComunicadosCliente({ clienteId }: { clienteId: string }) {
+export default function ComunicadosCliente({
+  clienteId,
+  nomeCliente,
+}: {
+  clienteId: string
+  nomeCliente: string
+}) {
   const supabase = createClient()
 
   const [comunicados, setComunicados] = useState<Comunicado[]>([])
@@ -94,20 +101,31 @@ export default function ComunicadosCliente({ clienteId }: { clienteId: string })
       data: { user },
     } = await supabase.auth.getUser()
 
-    const { error: insertError } = await supabase.from('comunicados').insert({
-      cliente_id: clienteId,
-      tipo,
-      titulo,
-      mensagem,
-      status: 'pendente',
-      enviado_por: user?.id ?? null,
-    })
+    const { data: comunicado, error: insertError } = await supabase
+      .from('comunicados')
+      .insert({
+        cliente_id: clienteId,
+        tipo,
+        titulo,
+        mensagem,
+        status: 'pendente',
+        enviado_por: user?.id ?? null,
+      })
+      .select('id')
+      .single()
 
-    if (insertError) {
+    if (insertError || !comunicado) {
       setError('Não foi possível enviar o comunicado. Tente novamente.')
       setEnviando(false)
       return
     }
+
+    registrarHistoricoAtividade({
+      acao: 'enviou_comunicado',
+      entidade: 'comunicado',
+      entidadeId: comunicado.id,
+      entidadeNome: `${titulo} — ${nomeCliente}`,
+    })
 
     setTitulo('')
     setMensagem('')

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import EditarCobrancaForm from '@/components/admin/EditarCobrancaForm'
+import EditarCobrancaForm, { type Cobranca } from '@/components/admin/EditarCobrancaForm'
 
 export default async function EditarCobrancaPage({
   params,
@@ -12,9 +12,9 @@ export default async function EditarCobrancaPage({
 
   const { data: cobranca } = await supabase
     .from('cobrancas')
-    .select('id, cliente_id, descricao, competencia, valor, data_vencimento')
+    .select('id, cliente_id, descricao, competencia, valor, data_vencimento, clientes(nome_empresa)')
     .eq('id', id)
-    .single()
+    .single<Cobranca>()
 
   if (!cobranca) {
     notFound()

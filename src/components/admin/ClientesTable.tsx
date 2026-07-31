@@ -14,6 +14,7 @@ type Cliente = {
   responsavel: string | null
   telefone: string | null
   regime_tributario: string | null
+  profile_id: string | null
 }
 
 const tipoBadge: Record<string, string> = {
@@ -102,7 +103,17 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
                 <tr key={cliente.id} className="border-t border-rule">
                   <td className="px-4 py-3 font-mono text-charcoal">{cliente.codigo_interno ?? '—'}</td>
                   <td className="px-4 py-3 text-charcoal">{cliente.cnpj_cpf ?? '—'}</td>
-                  <td className="px-4 py-3 font-medium text-navy">{cliente.nome_empresa}</td>
+                  <td className="px-4 py-3 font-medium text-navy">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        title={cliente.profile_id ? 'Acesso ao portal ativo' : 'Ainda não convidado pro portal'}
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                          cliente.profile_id ? 'bg-[#4f8f2a]' : 'bg-navy-soft/30'
+                        }`}
+                      />
+                      {cliente.nome_empresa}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SelectCliente from '@/components/admin/SelectCliente'
+import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -29,19 +30,30 @@ export default function NovaTarefaPage() {
     setError('')
     setLoading(true)
 
-    const { error: insertError } = await supabase.from('tarefas').insert({
-      cliente_id: clienteId || null,
-      titulo,
-      descricao: descricao || null,
-      data_limite: dataLimite || null,
-      status: 'a_fazer',
-    })
+    const { data: tarefa, error: insertError } = await supabase
+      .from('tarefas')
+      .insert({
+        cliente_id: clienteId || null,
+        titulo,
+        descricao: descricao || null,
+        data_limite: dataLimite || null,
+        status: 'a_fazer',
+      })
+      .select('id')
+      .single()
 
-    if (insertError) {
+    if (insertError || !tarefa) {
       setError('Não foi possível salvar a tarefa. Tente novamente.')
       setLoading(false)
       return
     }
+
+    registrarHistoricoAtividade({
+      acao: 'criou',
+      entidade: 'tarefa',
+      entidadeId: tarefa.id,
+      entidadeNome: titulo,
+    })
 
     router.push('/admin/tarefas')
     router.refresh()

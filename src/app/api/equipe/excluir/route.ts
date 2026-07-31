@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { registrarHistorico } from '@/lib/historico'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })
   }
 
-  const { data: profile } = await supabaseAuth.from('profiles').select('role').eq('id', user.id).single()
+  const { data: profile } = await supabaseAuth.from('profiles').select('role, nome').eq('id', user.id).single()
 
   if (profile?.role !== 'admin') {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 })
@@ -32,6 +33,10 @@ export async function POST(request: Request) {
   }
 
   const supabaseAdmin = createAdminClient()
+
+  // Nome buscado ANTES de excluir — depois do delete não tem mais como
+  // consultar essa informação.
+  const { data: alvo } = await supabaseAdmin.from('profiles').select('nome').eq('id', body.id).single()
 
   const { error: profileError } = await supabaseAdmin.from('profiles').delete().eq('id', body.id)
 
@@ -50,6 +55,15 @@ export async function POST(request: Request) {
       { status: 500 }
     )
   }
+
+  await registrarHistorico({
+    usuarioId: user.id,
+    usuarioNome: profile?.nome ?? user.email ?? 'Administrador',
+    acao: 'excluiu',
+    entidade: 'membro_equipe',
+    entidadeId: body.id,
+    entidadeNome: alvo?.nome ?? 'Membro da equipe',
+  })
 
   return NextResponse.json({ sucesso: true })
 }

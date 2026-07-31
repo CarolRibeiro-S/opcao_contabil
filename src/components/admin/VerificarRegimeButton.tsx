@@ -9,7 +9,13 @@ import { useRouter } from 'next/navigation'
 // internamente (300ms entre cada CNPJ).
 const TAMANHO_LOTE = 5
 
-type Resumo = { mei: number; simples_nacional: number; manual: number; falhas: number }
+type Resumo = {
+  mei: number
+  simples_nacional: number
+  manual: number
+  falhas: number
+  segmentos_atualizados: number
+}
 
 function dividirEmLotes<T>(itens: T[], tamanho: number): T[][] {
   const lotes: T[][] = []
@@ -25,16 +31,19 @@ export default function VerificarRegimeButton({ clienteIds }: { clienteIds: stri
   const [processando, setProcessando] = useState(false)
   const [progresso, setProgresso] = useState({ feito: 0, total: 0 })
   const [resumo, setResumo] = useState<Resumo | null>(null)
+  const [erro, setErro] = useState('')
 
   async function handleClick() {
     if (clienteIds.length === 0 || processando) return
 
     setProcessando(true)
     setResumo(null)
+    setErro('')
     setProgresso({ feito: 0, total: clienteIds.length })
 
     const lotes = dividirEmLotes(clienteIds, TAMANHO_LOTE)
-    const resumoAcumulado: Resumo = { mei: 0, simples_nacional: 0, manual: 0, falhas: 0 }
+    const resumoAcumulado: Resumo = { mei: 0, simples_nacional: 0, manual: 0, falhas: 0, segmentos_atualizados: 0 }
+    const mensagensErro: string[] = []
 
     for (const lote of lotes) {
       try {
@@ -44,24 +53,32 @@ export default function VerificarRegimeButton({ clienteIds }: { clienteIds: stri
           body: JSON.stringify({ cliente_ids: lote }),
         })
 
-        const dados = await resposta.json()
+        const dados = await resposta.json().catch(() => null)
 
-        if (resposta.ok) {
+        if (resposta.ok && dados?.resumo) {
           resumoAcumulado.mei += dados.resumo.mei
           resumoAcumulado.simples_nacional += dados.resumo.simples_nacional
           resumoAcumulado.manual += dados.resumo.manual
           resumoAcumulado.falhas += dados.resumo.falhas
+          resumoAcumulado.segmentos_atualizados += dados.resumo.segmentos_atualizados ?? 0
         } else {
           resumoAcumulado.falhas += lote.length
+          const mensagem = dados?.error ?? `Erro HTTP ${resposta.status} ao verificar este lote.`
+          console.error('Erro ao verificar regime (lote):', { status: resposta.status, dados })
+          if (!mensagensErro.includes(mensagem)) mensagensErro.push(mensagem)
         }
-      } catch {
+      } catch (excecao) {
         resumoAcumulado.falhas += lote.length
+        const mensagem = excecao instanceof Error ? excecao.message : 'Falha de rede ao chamar a verificação.'
+        console.error('Erro ao verificar regime (exceção):', excecao)
+        if (!mensagensErro.includes(mensagem)) mensagensErro.push(mensagem)
       }
 
       setProgresso((atual) => ({ ...atual, feito: atual.feito + lote.length }))
     }
 
     setResumo(resumoAcumulado)
+    setErro(mensagensErro.join(' | '))
     setProcessando(false)
     router.refresh()
   }
@@ -80,9 +97,11 @@ export default function VerificarRegimeButton({ clienteIds }: { clienteIds: stri
       {resumo && (
         <p className="max-w-[260px] text-right text-xs text-navy-soft">
           MEI: {resumo.mei} · Simples: {resumo.simples_nacional} · Confirmar manualmente: {resumo.manual} · Falhas:{' '}
-          {resumo.falhas}
+          {resumo.falhas} · Segmentos preenchidos: {resumo.segmentos_atualizados}
         </p>
       )}
+
+      {erro && <p className="max-w-[260px] text-right text-xs text-red-600">{erro}</p>}
     </div>
   )
 }

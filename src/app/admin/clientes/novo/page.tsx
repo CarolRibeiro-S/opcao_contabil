@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { SEGMENTOS } from '@/lib/constants/segmentos'
 import ProfissionaisEditor from '@/components/admin/ProfissionaisEditor'
 import AnexosInput from '@/components/admin/AnexosInput'
-import { registrarHistoricoCliente } from '@/lib/historicoCliente'
+import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 import CampoDocumento from '@/components/shared/CampoDocumento'
 import CampoTelefone from '@/components/shared/CampoTelefone'
 
@@ -71,7 +71,7 @@ export default function NovoClientePage() {
       return
     }
 
-    registrarHistoricoCliente({
+    registrarHistoricoAtividade({
       acao: 'criou',
       entidade: 'cliente',
       entidadeId: cliente.id,

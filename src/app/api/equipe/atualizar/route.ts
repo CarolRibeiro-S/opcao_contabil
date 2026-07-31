@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CHAVES_MODULOS_ADMIN } from '@/lib/constants/modulosAdmin'
+import { registrarHistorico } from '@/lib/historico'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })
   }
 
-  const { data: profile } = await supabaseAuth.from('profiles').select('role').eq('id', user.id).single()
+  const { data: profile } = await supabaseAuth.from('profiles').select('role, nome').eq('id', user.id).single()
 
   if (profile?.role !== 'admin') {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 })
@@ -77,11 +78,31 @@ export async function POST(request: Request) {
 
   const supabaseAdmin = createAdminClient()
 
+  // Busca o nome atual do alvo ANTES de atualizar — cobre o caso de
+  // ativar/inativar, onde o corpo da requisição só traz {id, status} e não
+  // tem o nome da pessoa pra registrar no histórico.
+  const { data: alvoAtual } = await supabaseAdmin.from('profiles').select('nome').eq('id', body.id).single()
+
   const { error } = await supabaseAdmin.from('profiles').update(atualizacao).eq('id', body.id)
 
   if (error) {
     return NextResponse.json({ error: 'Não foi possível salvar as alterações.' }, { status: 500 })
   }
+
+  const entidadeNome =
+    (typeof atualizacao.nome === 'string' ? atualizacao.nome : null) ?? alvoAtual?.nome ?? 'Membro da equipe'
+
+  const acao =
+    typeof atualizacao.status === 'string' ? (atualizacao.status === 'ativo' ? 'ativou' : 'inativou') : 'editou'
+
+  await registrarHistorico({
+    usuarioId: user.id,
+    usuarioNome: profile?.nome ?? user.email ?? 'Administrador',
+    acao,
+    entidade: 'membro_equipe',
+    entidadeId: body.id,
+    entidadeNome,
+  })
 
   return NextResponse.json({ sucesso: true })
 }

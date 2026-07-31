@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SelectCliente from '@/components/admin/SelectCliente'
+import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -46,20 +47,35 @@ export default function NovoPrazoPage() {
     setError('')
     setLoading(true)
 
-    const { error: insertError } = await supabase.from('prazos').insert({
-      cliente_id: clienteId || null,
-      obrigacao_id: obrigacaoId || null,
-      competencia: competencia ? `${competencia}-01` : null,
-      data_vencimento: dataVencimento || null,
-      observacoes: observacoes || null,
-      status: 'pendente',
-    })
+    const { data: prazo, error: insertError } = await supabase
+      .from('prazos')
+      .insert({
+        cliente_id: clienteId || null,
+        obrigacao_id: obrigacaoId || null,
+        competencia: competencia ? `${competencia}-01` : null,
+        data_vencimento: dataVencimento || null,
+        observacoes: observacoes || null,
+        status: 'pendente',
+      })
+      .select('id, obrigacoes_acessorias(nome), clientes(nome_empresa)')
+      .single<{
+        id: string
+        obrigacoes_acessorias: { nome: string } | null
+        clientes: { nome_empresa: string } | null
+      }>()
 
-    if (insertError) {
+    if (insertError || !prazo) {
       setError('Não foi possível salvar o prazo. Tente novamente.')
       setLoading(false)
       return
     }
+
+    registrarHistoricoAtividade({
+      acao: 'criou',
+      entidade: 'prazo',
+      entidadeId: prazo.id,
+      entidadeNome: `${prazo.obrigacoes_acessorias?.nome ?? 'Obrigação'} — ${prazo.clientes?.nome_empresa ?? 'Cliente'}`,
+    })
 
     router.push('/admin/prazos')
     router.refresh()

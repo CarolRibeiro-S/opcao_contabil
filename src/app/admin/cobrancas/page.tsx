@@ -119,7 +119,11 @@ export default async function CobrancasPage() {
                       >
                         Editar
                       </Link>
-                      <MarcarComoPago id={cobranca.id} status={cobranca.status} />
+                      <MarcarComoPago
+                        id={cobranca.id}
+                        status={cobranca.status}
+                        entidadeNome={`${cobranca.clientes?.nome_empresa ?? 'Cliente'} — ${formatarCompetencia(cobranca.competencia)}`}
+                      />
                     </div>
                   </td>
                 </tr>

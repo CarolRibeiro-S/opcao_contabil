@@ -6,6 +6,12 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SelectCliente from '@/components/admin/SelectCliente'
 import CampoMoeda from '@/components/shared/CampoMoeda'
+import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
+
+function formatarCompetenciaCurta(competencia: string) {
+  const [ano, mes] = competencia.split('-')
+  return `${mes}/${ano}`
+}
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -13,13 +19,14 @@ const inputClasses =
 const labelClasses =
   'mb-[7px] block font-mono text-[11px] uppercase tracking-[0.1em] text-navy-soft'
 
-type Cobranca = {
+export type Cobranca = {
   id: string
   cliente_id: string | null
   descricao: string | null
   competencia: string | null
   valor: number | null
   data_vencimento: string | null
+  clientes: { nome_empresa: string } | null
 }
 
 export default function EditarCobrancaForm({ cobranca }: { cobranca: Cobranca }) {
@@ -56,6 +63,15 @@ export default function EditarCobrancaForm({ cobranca }: { cobranca: Cobranca })
       setLoading(false)
       return
     }
+
+    registrarHistoricoAtividade({
+      acao: 'editou',
+      entidade: 'honorario',
+      entidadeId: cobranca.id,
+      entidadeNome: `${cobranca.clientes?.nome_empresa ?? 'Cliente'} — ${
+        competencia ? formatarCompetenciaCurta(competencia) : '—'
+      }`,
+    })
 
     router.push('/admin/cobrancas')
     router.refresh()

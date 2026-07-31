@@ -4,8 +4,17 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { reverterReceitaDoHonorario, sincronizarReceitaDoHonorario } from '@/lib/receitaHonorario'
+import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 
-export default function MarcarComoPago({ id, status }: { id: string; status: string }) {
+export default function MarcarComoPago({
+  id,
+  status,
+  entidadeNome,
+}: {
+  id: string
+  status: string
+  entidadeNome: string
+}) {
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
@@ -13,8 +22,21 @@ export default function MarcarComoPago({ id, status }: { id: string; status: str
   async function handleMarcarComoPago() {
     setLoading(true)
     const hoje = new Date().toISOString().slice(0, 10)
-    await supabase.from('cobrancas').update({ status: 'pago', data_pagamento: hoje }).eq('id', id)
-    await sincronizarReceitaDoHonorario(supabase, id)
+    const { error } = await supabase
+      .from('cobrancas')
+      .update({ status: 'pago', data_pagamento: hoje })
+      .eq('id', id)
+
+    if (!error) {
+      await sincronizarReceitaDoHonorario(supabase, id)
+      registrarHistoricoAtividade({
+        acao: 'marcou_pago',
+        entidade: 'honorario',
+        entidadeId: id,
+        entidadeNome,
+      })
+    }
+
     setLoading(false)
     router.refresh()
   }
@@ -23,8 +45,21 @@ export default function MarcarComoPago({ id, status }: { id: string; status: str
     if (!window.confirm('Reverter esse pagamento para em aberto?')) return
 
     setLoading(true)
-    await supabase.from('cobrancas').update({ status: 'em_aberto', data_pagamento: null }).eq('id', id)
-    await reverterReceitaDoHonorario(supabase, id)
+    const { error } = await supabase
+      .from('cobrancas')
+      .update({ status: 'em_aberto', data_pagamento: null })
+      .eq('id', id)
+
+    if (!error) {
+      await reverterReceitaDoHonorario(supabase, id)
+      registrarHistoricoAtividade({
+        acao: 'reverteu_pagamento',
+        entidade: 'honorario',
+        entidadeId: id,
+        entidadeNome,
+      })
+    }
+
     setLoading(false)
     router.refresh()
   }

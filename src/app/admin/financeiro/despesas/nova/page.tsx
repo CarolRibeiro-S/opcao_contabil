@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SelectCategoria from '@/components/admin/SelectCategoria'
 import CampoMoeda from '@/components/shared/CampoMoeda'
+import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -49,24 +50,35 @@ export default function NovaDespesaPage() {
       return
     }
 
-    const { error: insertError } = await supabase.from('despesas').insert({
-      descricao,
-      categoria_id: categoriaId,
-      valor,
-      competencia: competencia ? `${competencia}-01` : null,
-      data_vencimento: dataVencimento || null,
-      data_pagamento: dataPagamento || null,
-      observacao: observacao || null,
-      status: dataPagamento ? 'pago' : 'em_aberto',
-      criado_por: user.id,
-    })
+    const { data: despesa, error: insertError } = await supabase
+      .from('despesas')
+      .insert({
+        descricao,
+        categoria_id: categoriaId,
+        valor,
+        competencia: competencia ? `${competencia}-01` : null,
+        data_vencimento: dataVencimento || null,
+        data_pagamento: dataPagamento || null,
+        observacao: observacao || null,
+        status: dataPagamento ? 'pago' : 'em_aberto',
+        criado_por: user.id,
+      })
+      .select('id')
+      .single()
 
-    if (insertError) {
+    if (insertError || !despesa) {
       console.error('Erro ao salvar despesa:', insertError)
-      setError(insertError.message)
+      setError(insertError?.message ?? 'Não foi possível salvar a despesa.')
       setLoading(false)
       return
     }
+
+    registrarHistoricoAtividade({
+      acao: 'criou',
+      entidade: 'despesa',
+      entidadeId: despesa.id,
+      entidadeNome: descricao,
+    })
 
     router.push('/admin/financeiro/despesas')
     router.refresh()

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CHAVES_MODULOS_ADMIN } from '@/lib/constants/modulosAdmin'
+import { registrarHistorico } from '@/lib/historico'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })
   }
 
-  const { data: profile } = await supabaseAuth.from('profiles').select('role').eq('id', user.id).single()
+  const { data: profile } = await supabaseAuth.from('profiles').select('role, nome').eq('id', user.id).single()
 
   if (profile?.role !== 'admin') {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 })
@@ -105,6 +106,15 @@ export async function POST(request: Request) {
         { status: 500 }
       )
     }
+
+    await registrarHistorico({
+      usuarioId: user.id,
+      usuarioNome: profile?.nome ?? user.email ?? 'Administrador',
+      acao: 'convidou',
+      entidade: 'membro_equipe',
+      entidadeId: convite.user.id,
+      entidadeNome: nome,
+    })
 
     return NextResponse.json({ sucesso: true })
   } catch (erroInesperado) {

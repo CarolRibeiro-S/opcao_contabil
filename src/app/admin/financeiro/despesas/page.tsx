@@ -201,7 +201,7 @@ export default async function DespesasPage({
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <AcoesDespesa id={despesa.id} status={despesa.status} />
+                        <AcoesDespesa id={despesa.id} status={despesa.status} descricao={despesa.descricao} />
                       </td>
                     </tr>
                   )

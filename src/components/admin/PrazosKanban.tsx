@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 
 type Prazo = {
   id: string
@@ -46,8 +47,9 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
   const supabase = createClient()
 
   async function moverStatus(id: string, novoStatus: string) {
-    const statusAnterior = prazos.find((prazo) => prazo.id === id)?.status
-    if (!statusAnterior) return
+    const prazo = prazos.find((prazo) => prazo.id === id)
+    const statusAnterior = prazo?.status
+    if (!prazo || !statusAnterior) return
 
     setPrazos((atual) => atual.map((prazo) => (prazo.id === id ? { ...prazo, status: novoStatus } : prazo)))
 
@@ -57,7 +59,19 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
       setPrazos((atual) =>
         atual.map((prazo) => (prazo.id === id ? { ...prazo, status: statusAnterior } : prazo))
       )
+      return
     }
+
+    const tituloAnterior = COLUNAS.find((coluna) => coluna.status === statusAnterior)?.titulo ?? statusAnterior
+    const tituloNovo = COLUNAS.find((coluna) => coluna.status === novoStatus)?.titulo ?? novoStatus
+
+    registrarHistoricoAtividade({
+      acao: 'moveu_prazo',
+      entidade: 'prazo',
+      entidadeId: id,
+      entidadeNome: `${prazo.obrigacoes_acessorias?.nome ?? 'Obrigação'} — ${prazo.clientes?.nome_empresa ?? 'Cliente'}`,
+      detalhes: `${tituloAnterior} → ${tituloNovo}`,
+    })
   }
 
   return (
