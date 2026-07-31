@@ -13,7 +13,7 @@ export default async function EditarClientePage({
   const { data: cliente } = await supabase
     .from('clientes')
     .select(
-      'id, nome_empresa, apelido, cnpj_cpf, tipo, regime_tributario, segmento, responsavel, email, telefone, observacoes, status'
+      'id, nome_empresa, codigo_interno, apelido, cnpj_cpf, tipo, regime_tributario, segmento, responsavel, email, telefone, observacoes, status'
     )
     .eq('id', id)
     .single()

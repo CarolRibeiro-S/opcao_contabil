@@ -22,6 +22,7 @@ export default function NovoClientePage() {
   const supabase = createClient()
 
   const [nomeEmpresa, setNomeEmpresa] = useState('')
+  const [codigoInterno, setCodigoInterno] = useState('')
   const [apelido, setApelido] = useState('')
   const [cnpjCpf, setCnpjCpf] = useState('')
   const [tipo, setTipo] = useState<'pessoa_juridica' | 'mei'>('pessoa_juridica')
@@ -49,6 +50,7 @@ export default function NovoClientePage() {
       .from('clientes')
       .insert({
         nome_empresa: nomeEmpresa,
+        codigo_interno: codigoInterno ? Number(codigoInterno) : null,
         apelido: apelido || null,
         cnpj_cpf: cnpjCpf || null,
         tipo,
@@ -147,18 +149,34 @@ export default function NovoClientePage() {
           />
         </div>
 
-        <div>
-          <label htmlFor="apelido" className={labelClasses}>
-            Apelido
-          </label>
-          <input
-            id="apelido"
-            type="text"
-            placeholder="Nome curto usado nos arquivos, ex: WNF, GREENTEC"
-            value={apelido}
-            onChange={(e) => setApelido(e.target.value)}
-            className={inputClasses}
-          />
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-[140px_1fr]">
+          <div>
+            <label htmlFor="codigoInterno" className={labelClasses}>
+              Código
+            </label>
+            <input
+              id="codigoInterno"
+              type="number"
+              placeholder="Ex: 102"
+              value={codigoInterno}
+              onChange={(e) => setCodigoInterno(e.target.value)}
+              className={inputClasses}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="apelido" className={labelClasses}>
+              Apelido
+            </label>
+            <input
+              id="apelido"
+              type="text"
+              placeholder="Nome curto usado nos arquivos, ex: WNF, GREENTEC"
+              value={apelido}
+              onChange={(e) => setApelido(e.target.value)}
+              className={inputClasses}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

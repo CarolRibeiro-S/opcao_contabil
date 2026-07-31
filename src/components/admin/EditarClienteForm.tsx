@@ -21,6 +21,7 @@ const labelClasses =
 type Cliente = {
   id: string
   nome_empresa: string
+  codigo_interno: number | null
   apelido: string | null
   cnpj_cpf: string | null
   tipo: string
@@ -54,6 +55,9 @@ export default function EditarClienteForm({
   const supabase = createClient()
 
   const [nomeEmpresa, setNomeEmpresa] = useState(cliente.nome_empresa)
+  const [codigoInterno, setCodigoInterno] = useState(
+    cliente.codigo_interno !== null ? String(cliente.codigo_interno) : ''
+  )
   const [apelido, setApelido] = useState(cliente.apelido ?? '')
   const [cnpjCpf, setCnpjCpf] = useState(cliente.cnpj_cpf ?? '')
   const [tipo, setTipo] = useState<'pessoa_juridica' | 'mei'>(
@@ -84,6 +88,7 @@ export default function EditarClienteForm({
       .from('clientes')
       .update({
         nome_empresa: nomeEmpresa,
+        codigo_interno: codigoInterno ? Number(codigoInterno) : null,
         apelido: apelido || null,
         cnpj_cpf: cnpjCpf || null,
         tipo,
@@ -192,18 +197,34 @@ export default function EditarClienteForm({
           />
         </div>
 
-        <div>
-          <label htmlFor="apelido" className={labelClasses}>
-            Apelido
-          </label>
-          <input
-            id="apelido"
-            type="text"
-            placeholder="Nome curto usado nos arquivos, ex: WNF, GREENTEC"
-            value={apelido}
-            onChange={(e) => setApelido(e.target.value)}
-            className={inputClasses}
-          />
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-[140px_1fr]">
+          <div>
+            <label htmlFor="codigoInterno" className={labelClasses}>
+              Código
+            </label>
+            <input
+              id="codigoInterno"
+              type="number"
+              placeholder="Ex: 102"
+              value={codigoInterno}
+              onChange={(e) => setCodigoInterno(e.target.value)}
+              className={inputClasses}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="apelido" className={labelClasses}>
+              Apelido
+            </label>
+            <input
+              id="apelido"
+              type="text"
+              placeholder="Nome curto usado nos arquivos, ex: WNF, GREENTEC"
+              value={apelido}
+              onChange={(e) => setApelido(e.target.value)}
+              className={inputClasses}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

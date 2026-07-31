@@ -5,6 +5,7 @@ import AcoesCliente from './AcoesCliente'
 
 type Cliente = {
   id: string
+  codigo_interno: number | null
   cnpj_cpf: string | null
   nome_empresa: string
   tipo: string
@@ -44,7 +45,8 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
     ? clientes.filter(
         (cliente) =>
           cliente.nome_empresa.toLowerCase().includes(termo) ||
-          (cliente.segmento ?? '').toLowerCase().includes(termo)
+          (cliente.segmento ?? '').toLowerCase().includes(termo) ||
+          (cliente.codigo_interno !== null && String(cliente.codigo_interno).includes(termo))
       )
     : clientes
 
@@ -52,7 +54,7 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
     <div>
       <input
         type="search"
-        placeholder="Buscar por empresa ou segmento..."
+        placeholder="Buscar por código, empresa ou segmento..."
         value={busca}
         onChange={(e) => setBusca(e.target.value)}
         className="mb-5 w-full max-w-sm rounded-[3px] border border-rule bg-white px-3 py-2 text-sm text-charcoal outline-none transition-colors duration-200 focus:border-lime"
@@ -63,9 +65,12 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
       ) : (
         <div className="overflow-hidden rounded-lg border border-rule bg-white">
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] text-left text-sm">
+          <table className="w-full min-w-[1040px] text-left text-sm">
             <thead className="bg-paper-dim">
               <tr>
+                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                  Código
+                </th>
                 <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
                   CNPJ
                 </th>
@@ -95,6 +100,7 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
             <tbody>
               {clientesFiltrados.map((cliente) => (
                 <tr key={cliente.id} className="border-t border-rule">
+                  <td className="px-4 py-3 font-mono text-charcoal">{cliente.codigo_interno ?? '—'}</td>
                   <td className="px-4 py-3 text-charcoal">{cliente.cnpj_cpf ?? '—'}</td>
                   <td className="px-4 py-3 font-medium text-navy">{cliente.nome_empresa}</td>
                   <td className="px-4 py-3">
