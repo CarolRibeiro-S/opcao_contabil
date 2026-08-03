@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { ICONES } from '@/components/shared/icons'
+import CardComunicados from '@/components/admin/CardComunicados'
 
 type PrazoResumo = {
   id: string
@@ -24,6 +25,16 @@ type CobrancaResumo = {
 }
 
 type LancamentoResumo = { valor: number | null }
+
+type ComunicadoResumo = {
+  id: string
+  cliente_id: string
+  titulo: string
+  tipo: string
+  status: string
+  created_at: string
+  clientes: { nome_empresa: string } | null
+}
 
 const statusBadgePrazo: Record<string, string> = {
   pendente: 'bg-paper-dim text-navy-soft border border-rule',
@@ -105,6 +116,10 @@ export default async function DashboardPage() {
   const hoje = new Date().toISOString().slice(0, 10)
   const daquiA2Dias = somarDias(hoje, 2)
   const daquiA7Dias = somarDias(hoje, 7)
+  // Janela fixa de 30 dias pros cards de Comunicados — mantém o Dashboard
+  // leve (não carrega o histórico inteiro). Dentro dessa janela, os campos
+  // de busca/data de cada card (CardComunicados) filtram no client-side.
+  const trintaDiasAtras = `${somarDias(hoje, -30)}T00:00:00`
   const [anoAtual, mesAtual, diaAtual] = hoje.split('-').map(Number)
   const competenciaAtual = `${hoje.slice(0, 7)}-01`
 
@@ -127,6 +142,7 @@ export default async function DashboardPage() {
     { data: prazosSemana },
     { count: tarefasPendentesTotal },
     { data: tarefasProximas },
+    { data: comunicadosRecentes },
   ] = await Promise.all([
     supabase.from('clientes').select('id', { count: 'exact', head: true }).eq('status', 'ativo'),
     supabase.from('clientes').select('id', { count: 'exact', head: true }).eq('status', 'inativo'),
@@ -167,6 +183,12 @@ export default async function DashboardPage() {
       .order('data_limite', { ascending: true })
       .limit(5)
       .returns<TarefaResumo[]>(),
+    supabase
+      .from('comunicados')
+      .select('id, cliente_id, titulo, tipo, status, created_at, clientes(nome_empresa)')
+      .gte('created_at', trintaDiasAtras)
+      .order('created_at', { ascending: false })
+      .returns<ComunicadoResumo[]>(),
   ])
 
   const listaCobrancas = cobrancasMes ?? []
@@ -199,13 +221,25 @@ export default async function DashboardPage() {
     (prazo) => prazo.data_vencimento && prazo.data_vencimento <= daquiA2Dias
   )
 
+  const listaComunicados = comunicadosRecentes ?? []
+  const comunicadosAviso = listaComunicados.filter((comunicado) => comunicado.tipo === 'aviso')
+  const comunicadosSolicitacao = listaComunicados.filter(
+    (comunicado) => comunicado.tipo === 'solicitacao_documento'
+  )
+
   return (
     <div>
       <h1 className="font-display text-2xl font-semibold text-navy">Dashboard</h1>
       <p className="mb-8 mt-1 text-sm text-navy-soft">{dataExtenso}</p>
 
-      {/* Linha 1 — saúde geral do negócio: clientes, financeiro e adimplência lado a lado. */}
-      <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {/* mt-[41px] alinha o topo desta grade com o início da área azul de
+          navegação da sidebar. O padding-top do <main> subiu 32px (de 32
+          pra 64px), então este margin caiu os mesmos 32px (de 73 pra 41)
+          pra manter o total (main pt + este mt) em 105px, igual a antes —
+          os cards não se mexem, só o título desceu. Domina o mb-8 da data
+          por colapso de margem entre irmãos.
+          Linha 1 — saúde geral do negócio: clientes, financeiro e adimplência lado a lado. */}
+      <div className="mt-[41px] mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <div className={cardClasses}>
           <div className="flex items-start justify-between">
             <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
@@ -452,6 +486,18 @@ export default async function DashboardPage() {
             </Link>
           </div>
         </div>
+      </div>
+
+      {/* Linha 3 — Comunicados dos últimos 30 dias, separados por tipo e por
+          status (Pendente / Em Andamento / Concluído), com busca por cliente
+          e por data dentro de cada card. */}
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <CardComunicados titulo="Avisos - Enviado a Clientes" icone="comunicados" comunicados={comunicadosAviso} />
+        <CardComunicados
+          titulo="Solicitação de Documento - Solicitado para Clientes"
+          icone="documentos"
+          comunicados={comunicadosSolicitacao}
+        />
       </div>
     </div>
   )

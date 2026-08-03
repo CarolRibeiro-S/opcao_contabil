@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
+import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CHAVES_MODULOS_ADMIN } from '@/lib/constants/modulosAdmin'
 import { registrarHistorico } from '@/lib/historico'
+import { emailConviteEquipe } from '@/lib/email/templates'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,15 +58,20 @@ export async function POST(request: Request) {
   try {
     const supabaseAdmin = createAdminClient()
 
-    const { data: convite, error: conviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: { nome },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/definir-senha`,
+    // generateLink({type:'invite'}) no lugar de inviteUserByEmail(): os dois
+    // criam o usuário da mesma forma, mas só o generateLink devolve o
+    // código OTP (data.properties.email_otp), necessário pra montar um
+    // e-mail com código em vez do link mágico clicável de sempre —
+    // Gmail/Outlook escaneiam e "visitam" automaticamente links de e-mail
+    // por segurança, o que gastava o link de uso único antes do clique real.
+    const { data: convite, error: conviteError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'invite',
+      email,
+      options: { data: { nome } },
     })
 
-    if (conviteError || !convite.user) {
-      // Log completo pro terminal — o objeto de erro do Supabase costuma ter
-      // status/code/name além da message, útil pra diagnosticar o 500 real.
-      console.error('[api/equipe/convidar] Erro ao chamar inviteUserByEmail:', conviteError)
+    if (conviteError || !convite.user || !convite.properties?.email_otp) {
+      console.error('[api/equipe/convidar] Erro ao chamar generateLink (invite):', conviteError)
 
       const jaExiste =
         conviteError?.status === 422 || (conviteError?.message ?? '').toLowerCase().includes('already')
@@ -74,8 +81,7 @@ export async function POST(request: Request) {
           error: jaExiste
             ? 'Já existe um usuário cadastrado com esse e-mail.'
             : 'Não foi possível enviar o convite. Tente novamente.',
-          // Exposto de propósito pra debug agora — não é pra produção final.
-          detalhes: conviteError?.message ?? 'inviteUserByEmail não retornou usuário nem erro.',
+          detalhes: conviteError?.message ?? 'generateLink não retornou usuário nem código.',
         },
         { status: jaExiste ? 409 : 500 }
       )
@@ -102,6 +108,37 @@ export async function POST(request: Request) {
         {
           error: 'O convite foi enviado, mas houve um erro ao salvar os dados do membro.',
           detalhes: profileError.message,
+        },
+        { status: 500 }
+      )
+    }
+
+    const linkVerificarCodigo = `${process.env.NEXT_PUBLIC_SITE_URL}/verificar-codigo?${new URLSearchParams({
+      email,
+      tipo: 'invite',
+    }).toString()}`
+
+    const resend = new Resend(process.env.RESEND_API_KEY)
+    const { subject, html } = emailConviteEquipe({
+      nomeDestinatario: nome,
+      codigo: convite.properties.email_otp,
+      linkVerificarCodigo,
+    })
+
+    const { error: emailError } = await resend.emails.send({
+      from: 'naoresponda@opcaocontabilbsb.com.br',
+      to: email,
+      subject,
+      html,
+    })
+
+    if (emailError) {
+      console.error('[api/equipe/convidar] Erro ao enviar e-mail de convite:', emailError)
+
+      return NextResponse.json(
+        {
+          error: 'O acesso foi criado, mas houve um erro ao enviar o e-mail com o código.',
+          detalhes: emailError.message,
         },
         { status: 500 }
       )

@@ -62,6 +62,12 @@ export default async function CobrancasPage() {
         </Link>
       </div>
 
+      {/* mt-[61px]: alinha o início do conteúdo com a linha azul de
+          navegação da sidebar (mesmo cálculo de Clientes/Tarefas/Prazos:
+          161px de altura do cabeçalho da sidebar, menos os 100px que
+          padding-top do <main> (64px) + a linha de título+botão (36px) já
+          ocupam). */}
+      <div className="mt-[61px]">
       {!cobrancas || cobrancas.length === 0 ? (
         <p className="text-sm text-navy-soft">Nenhum honorário cadastrado ainda.</p>
       ) : (
@@ -133,6 +139,7 @@ export default async function CobrancasPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

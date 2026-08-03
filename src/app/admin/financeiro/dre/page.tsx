@@ -276,9 +276,14 @@ export default async function DrePage({
         Demonstração do Resultado — {formatarCompetenciaExtenso(competenciaSelecionada)}
       </p>
 
+      {/* mt-[37px]: alinha o início do conteúdo com a linha azul de
+          navegação da sidebar (161px de altura do cabeçalho da sidebar,
+          menos os 124px que padding-top do <main> (64px) + o bloco de
+          título+descrição (60px: h1 + colapso de 8px + parágrafo) já
+          ocupam — mesmo cálculo do Dashboard Financeiro/Histórico). */}
       <form
         action="/admin/financeiro/dre"
-        className="mb-8 flex flex-wrap items-end gap-3 rounded-lg border border-rule bg-white p-4"
+        className="mt-[37px] mb-8 flex flex-wrap items-end gap-3 rounded-lg border border-rule bg-white p-4"
       >
         <div>
           <label

@@ -47,6 +47,8 @@ export default function NovoComunicadoMassaPage() {
   const [tipo, setTipo] = useState<'aviso' | 'solicitacao_documento'>('aviso')
   const [titulo, setTitulo] = useState('')
   const [mensagem, setMensagem] = useState('')
+  const [arquivo, setArquivo] = useState<File | null>(null)
+  const [apenasAviso, setApenasAviso] = useState(false)
 
   const [busca, setBusca] = useState('')
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
@@ -108,10 +110,55 @@ export default function NovoComunicadoMassaPage() {
   }
 
   async function enviarLote(clienteIds: string[]) {
+    // Upload direto do navegador pro Storage — mesmo padrão já usado no
+    // ThreadComunicado — uma cópia por cliente deste lote, já que o caminho
+    // é por cliente_id. Se o upload de um cliente falhar, os outros do lote
+    // continuam normalmente; esse cliente só não recebe o anexo (o
+    // comunicado dele ainda é criado, só sem o arquivo vinculado).
+    const anexos: { cliente_id: string; nome_arquivo: string; caminho_arquivo: string; tipo_arquivo: string }[] = []
+
+    if (arquivo) {
+      const extensao = arquivo.name.split('.').pop() ?? ''
+
+      await Promise.all(
+        clienteIds.map(async (clienteId) => {
+          const caminhoArquivo = `${clienteId}/${Date.now()}-${arquivo.name}`
+
+          const { error: uploadError } = await supabase.storage
+            .from('documentos-clientes')
+            .upload(caminhoArquivo, arquivo)
+
+          if (uploadError) {
+            console.error(`[NovoComunicadoMassa] Erro ao enviar anexo pro cliente ${clienteId}:`, uploadError)
+            return
+          }
+
+          anexos.push({
+            cliente_id: clienteId,
+            nome_arquivo: arquivo.name,
+            caminho_arquivo: caminhoArquivo,
+            tipo_arquivo: extensao,
+          })
+        })
+      )
+    }
+
+    // "Apenas aviso" só existe pro tipo 'aviso' — Solicitação de Documento
+    // sempre exige resposta do cliente, então cada comunicado nasce
+    // 'pendente' normalmente.
+    const apenasAvisoAtivo = tipo === 'aviso' && apenasAviso
+
     const resposta = await fetch('/api/comunicados/enviar-massa', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo, titulo, mensagem, cliente_ids: clienteIds }),
+      body: JSON.stringify({
+        tipo,
+        titulo,
+        mensagem,
+        cliente_ids: clienteIds,
+        anexos,
+        requer_resposta: !apenasAvisoAtivo,
+      }),
     })
 
     const dados = await resposta.json().catch(() => null)
@@ -244,13 +291,33 @@ export default function NovoComunicadoMassaPage() {
           <select
             id="tipo"
             value={tipo}
-            onChange={(e) => setTipo(e.target.value as 'aviso' | 'solicitacao_documento')}
+            onChange={(e) => {
+              const novoTipo = e.target.value as 'aviso' | 'solicitacao_documento'
+              setTipo(novoTipo)
+              // Checkbox só existe pro tipo 'aviso' — some da tela ao trocar
+              // pra Solicitação de Documento, então destrava o estado junto,
+              // pra não ficar marcado "escondido" se a pessoa voltar pra
+              // 'aviso' depois sem querer.
+              if (novoTipo !== 'aviso') setApenasAviso(false)
+            }}
             className={inputClasses}
           >
             <option value="aviso">Aviso</option>
             <option value="solicitacao_documento">Solicitação de Documento</option>
           </select>
         </div>
+
+        {tipo === 'aviso' && (
+          <label className="flex items-center gap-2 text-sm text-charcoal">
+            <input
+              type="checkbox"
+              checked={apenasAviso}
+              onChange={(e) => setApenasAviso(e.target.checked)}
+              className="h-4 w-4 accent-lime"
+            />
+            Apenas aviso — não requer resposta do cliente
+          </label>
+        )}
 
         <div>
           <label htmlFor="titulo" className={labelClasses}>
@@ -278,6 +345,25 @@ export default function NovoComunicadoMassaPage() {
             className={`${inputClasses} resize-y`}
           />
         </div>
+
+        {tipo === 'solicitacao_documento' && (
+          <div>
+            <label htmlFor="anexo" className={labelClasses}>
+              Anexo (opcional)
+            </label>
+            <input
+              id="anexo"
+              type="file"
+              onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
+              className="block text-sm text-charcoal file:mr-3 file:rounded-[3px] file:border-[1.3px] file:border-navy file:bg-transparent file:px-4 file:py-2 file:text-sm file:font-semibold file:text-navy file:transition-colors file:duration-200 hover:file:bg-navy hover:file:text-paper"
+            />
+            {arquivo && (
+              <p className="mt-1.5 text-xs text-navy-soft">
+                📎 {arquivo.name} — enviado para cada cliente selecionado individualmente
+              </p>
+            )}
+          </div>
+        )}
 
         <div>
           <div className="mb-2 flex items-center justify-between">

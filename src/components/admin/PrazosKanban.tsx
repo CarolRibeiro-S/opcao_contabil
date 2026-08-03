@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
+import AcoesPrazo from '@/components/admin/AcoesPrazo'
 
 type Prazo = {
   id: string
@@ -97,10 +98,18 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
                     key={prazo.id}
                     className={`rounded-lg border border-t-rule border-r-rule border-b-rule border-l-4 ${coluna.corBorda} bg-white p-4 shadow-sm`}
                   >
-                    <p className="font-display text-sm font-semibold text-navy">
-                      {prazo.obrigacoes_acessorias?.nome ?? '—'}
-                    </p>
-                    <p className="mt-1 text-sm text-charcoal">{prazo.clientes?.nome_empresa ?? '—'}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-display text-sm font-semibold text-navy">
+                          {prazo.obrigacoes_acessorias?.nome ?? '—'}
+                        </p>
+                        <p className="mt-1 text-sm text-charcoal">{prazo.clientes?.nome_empresa ?? '—'}</p>
+                      </div>
+                      <AcoesPrazo
+                        id={prazo.id}
+                        entidadeNome={`${prazo.obrigacoes_acessorias?.nome ?? 'Obrigação'} — ${prazo.clientes?.nome_empresa ?? 'Cliente'}`}
+                      />
+                    </div>
                     <p className="mt-2 font-mono text-[11px] text-navy-soft">
                       Competência: {formatarCompetencia(prazo.competencia)}
                     </p>

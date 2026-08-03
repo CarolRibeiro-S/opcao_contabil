@@ -49,6 +49,11 @@ export default async function TarefasPage() {
         </Link>
       </div>
 
+      {/* mt-[61px]: alinha o início do conteúdo com a linha azul de
+          navegação da sidebar (mesmo cálculo de Clientes: 161px de altura
+          do cabeçalho da sidebar, menos os 100px que padding-top do <main>
+          (64px) + a linha de título+botão (36px) já ocupam). */}
+      <div className="mt-[61px]">
       {!tarefas || tarefas.length === 0 ? (
         <p className="text-sm text-navy-soft">Nenhuma tarefa cadastrada ainda.</p>
       ) : (
@@ -99,6 +104,7 @@ export default async function TarefasPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

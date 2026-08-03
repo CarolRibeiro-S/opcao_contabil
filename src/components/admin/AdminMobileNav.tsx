@@ -24,16 +24,21 @@ export default function AdminMobileNav({
 
   return (
     <div className="md:hidden">
-      <div className="flex items-center justify-between border-b border-white/15 bg-navy px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <Image src={logo} alt="Opção Contábil" className="h-8 w-auto" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-lime">{titulo}</span>
+      <div className="flex min-w-0 items-center justify-between gap-3 border-b border-white/15 bg-navy px-4 py-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <Image src={logo} alt="Opção Contábil" className="h-8 w-auto shrink-0" />
+          <span
+            title={titulo}
+            className="min-w-0 flex-1 truncate font-mono text-[10px] uppercase tracking-[0.1em] text-lime"
+          >
+            {titulo}
+          </span>
         </div>
         <button
           type="button"
           onClick={() => setAberto(true)}
           aria-label="Abrir menu"
-          className="flex h-11 w-11 items-center justify-center rounded-md text-paper transition-colors duration-200 hover:bg-white/10"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-paper transition-colors duration-200 hover:bg-white/10"
         >
           <span className="text-2xl leading-none">☰</span>
         </button>
@@ -55,8 +60,17 @@ export default function AdminMobileNav({
               </button>
             </div>
 
-            <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-lime">{titulo}</p>
-            {subtitulo && <p className="mt-1 text-sm font-medium text-white">{subtitulo}</p>}
+            <p
+              title={titulo}
+              className="line-clamp-2 min-w-0 overflow-hidden break-words font-mono text-[11px] uppercase tracking-[0.1em] text-lime"
+            >
+              {titulo}
+            </p>
+            {subtitulo && (
+              <p title={subtitulo} className="mt-1 truncate text-sm font-medium text-white">
+                {subtitulo}
+              </p>
+            )}
 
             <div className="mt-6 border-t border-white/10" />
 

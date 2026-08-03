@@ -2,6 +2,8 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AdminMobileNav from '@/components/admin/AdminMobileNav'
+import NotificacoesRespostas from '@/components/admin/NotificacoesRespostas'
+import NotificacoesVisualizacoesHonorarios from '@/components/admin/NotificacoesVisualizacoesHonorarios'
 import Sidebar, { type SidebarLink } from '@/components/shared/Sidebar'
 import logo from '../../../public/images/logo-simbolo.png'
 
@@ -115,13 +117,27 @@ export default async function AdminLayout({
 
   const permissoes = profile.permissoes as string[] | null
 
-  const navLinksPermitidos =
+  // status='respondido' = cliente respondeu por último e o admin ainda não
+  // tratou essa conversa (viu, respondeu de volta ou marcou como concluída).
+  const { count: comunicadosRespondidos } = await supabase
+    .from('comunicados')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'respondido')
+
+  const navLinksPermitidos = (
     permissoes === null
       ? navLinks
       : navLinks.filter((link) => {
           const modulo = MODULO_POR_HREF[link.href]
           return !modulo || permissoes.includes(modulo)
         })
+  ).map((link) =>
+    // Só entra o badge se houver pelo menos 1 — 0 não deve aparecer como
+    // "0" no menu, então não seta a prop badge nesse caso (undefined).
+    link.href === '/admin/comunicados' && comunicadosRespondidos
+      ? { ...link, badge: comunicadosRespondidos }
+      : link
+  )
 
   // Proteção por URL, não só visual: se a rota atual corresponde a um módulo
   // fora da lista de permissões do usuário, redireciona antes de renderizar
@@ -164,7 +180,15 @@ export default async function AdminLayout({
         usuarioEmail={user.email}
       />
 
-      <main className="flex-1 overflow-x-hidden p-4 md:p-8">{children}</main>
+      {/* pt-16 (64px) no desktop = md:p-8 (32px) de antes + 32px a mais, pra
+          descer o título até ficar mais no centro vertical da faixa branca
+          do cabeçalho da sidebar. px/pb continuam em 32px (md:p-8) — só o
+          topo mudou, por isso vai separado em vez de usar md:p-8 sozinho. */}
+      <main className="flex-1 overflow-x-hidden p-6 md:px-8 md:pb-8 md:pt-16">
+        <NotificacoesRespostas />
+        <NotificacoesVisualizacoesHonorarios />
+        {children}
+      </main>
     </div>
   )
 }

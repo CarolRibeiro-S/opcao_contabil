@@ -148,7 +148,13 @@ export default async function FinanceiroDashboardPage() {
       <h1 className="mb-2 font-display text-2xl font-semibold text-navy">Dashboard Financeiro</h1>
       <p className="mb-8 text-sm text-navy-soft">Visão geral de vencimentos e resultado dos últimos meses</p>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      {/* mt-[37px] alinha o topo desta grade com o início da área azul de
+          navegação da sidebar. O padding-top do <main> subiu 32px (de 32
+          pra 64px), então este margin caiu os mesmos 32px (de 69 pra 37)
+          pra manter o total (main pt + este mt) em 101px, igual a antes —
+          os cards não se mexem, só o título desceu. Domina o mb-8 da
+          descrição por colapso de margem entre irmãos. */}
+      <div className="mt-[37px] grid grid-cols-1 gap-8 lg:grid-cols-2">
         <div className={cardClasses}>
           <div className="flex items-center justify-between border-b border-rule pb-3">
             <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getClienteAtual } from '@/lib/portal/getClienteAtual'
 import { ICONES } from '@/components/shared/icons'
+import CardComunicadosPortal from '@/components/portal/CardComunicadosPortal'
 
 type Prazo = {
   id: string
@@ -15,6 +16,14 @@ type Cobranca = {
   competencia: string | null
   valor: number | null
   data_vencimento: string | null
+}
+
+type ComunicadoResumo = {
+  id: string
+  titulo: string
+  tipo: string
+  status: string
+  created_at: string
 }
 
 const cardClasses =
@@ -77,7 +86,7 @@ export default async function PortalDashboard() {
   const hoje = new Date().toISOString().slice(0, 10)
   const daqui15Dias = somarDias(hoje, 15)
 
-  const [{ data: prazosProximos }, { data: cobrancasEmAberto }, { data: comunicadosPendentes }] =
+  const [{ data: prazosProximos }, { data: cobrancasEmAberto }, { data: comunicadosPendentes }, { data: comunicadosCliente }] =
     await Promise.all([
       supabase
         .from('prazos')
@@ -95,18 +104,30 @@ export default async function PortalDashboard() {
         .order('data_vencimento', { ascending: true })
         .returns<Cobranca[]>(),
       supabase.from('comunicados').select('id').eq('cliente_id', cliente.id).eq('status', 'pendente'),
+      supabase
+        .from('comunicados')
+        .select('id, titulo, tipo, status, created_at')
+        .eq('cliente_id', cliente.id)
+        .order('created_at', { ascending: false })
+        .returns<ComunicadoResumo[]>(),
     ])
 
   const listaPrazos = prazosProximos ?? []
   const listaCobrancas = cobrancasEmAberto ?? []
   const totalComunicadosPendentes = comunicadosPendentes?.length ?? 0
 
+  const listaComunicados = comunicadosCliente ?? []
+  const comunicadosAviso = listaComunicados.filter((comunicado) => comunicado.tipo === 'aviso')
+  const comunicadosSolicitacao = listaComunicados.filter(
+    (comunicado) => comunicado.tipo === 'solicitacao_documento'
+  )
+
   const proximaCobranca = listaCobrancas[0] ?? null
   const cobrancaAtrasada = proximaCobranca?.data_vencimento ? proximaCobranca.data_vencimento < hoje : false
 
   return (
     <div>
-      <h1 className="mb-8 font-display text-2xl font-semibold text-navy">
+      <h1 className="mb-10 break-words font-display text-2xl font-semibold text-navy">
         Olá, {cliente.nome_empresa}
       </h1>
 
@@ -123,7 +144,15 @@ export default async function PortalDashboard() {
         </Link>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* mt-[83px] alinha o topo desta grade com o início da área azul de
+          navegação da sidebar. O padding-top do <main> subiu 32px (de 32
+          pra 64px), então este margin caiu os mesmos 32px (de 115 pra 83)
+          pra manter o total (main pt + este mt) em 147px, igual a antes —
+          os cards não se mexem, só o título desceu. Como margens verticais
+          de irmãos em fluxo normal colapsam pro maior valor, esse mt-[83px]
+          domina o mb-10 do título (e o mb-8 do banner de comunicados,
+          quando ele aparece). */}
+      <div className="mt-[83px] grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className={cardClasses}>
           <div className="mb-4 flex items-start justify-between">
             <div>
@@ -237,6 +266,17 @@ export default async function PortalDashboard() {
             </Link>
           </div>
         </div>
+      </div>
+
+      {/* Espelha os cards de Comunicados do Dashboard do Admin, só que já
+          filtrados pra este cliente — mesmas 3 colunas por status. */}
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <CardComunicadosPortal titulo="Aviso Recebido" icone="comunicados" comunicados={comunicadosAviso} />
+        <CardComunicadosPortal
+          titulo="Solicitação de Documento Recebida"
+          icone="documentos"
+          comunicados={comunicadosSolicitacao}
+        />
       </div>
     </div>
   )

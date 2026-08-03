@@ -12,7 +12,9 @@ export default async function EditarCobrancaPage({
 
   const { data: cobranca } = await supabase
     .from('cobrancas')
-    .select('id, cliente_id, descricao, competencia, valor, data_vencimento, clientes(nome_empresa)')
+    .select(
+      'id, cliente_id, descricao, competencia, valor, data_vencimento, forma_pagamento, chave_pix, boleto_nome_arquivo, boleto_caminho_arquivo, mensagem_pagamento, clientes(nome_empresa)'
+    )
     .eq('id', id)
     .single<Cobranca>()
 

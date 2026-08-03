@@ -1,5 +1,5 @@
 import { getClienteAtual } from '@/lib/portal/getClienteAtual'
-import ResponderComunicado from '@/components/portal/ResponderComunicado'
+import ComunicadoThread from '@/components/portal/ComunicadoThread'
 
 type Comunicado = {
   id: string
@@ -7,6 +7,7 @@ type Comunicado = {
   tipo: string
   mensagem: string
   status: string
+  requer_resposta: boolean
   created_at: string
 }
 
@@ -36,7 +37,14 @@ const statusLabel: Record<string, string> = {
 // de Brasília explicitamente, senão o dia exibido pode variar conforme o
 // fuso do servidor — mesmo cuidado já usado em formatarDataHora (histórico).
 function formatarData(data: string) {
-  return new Date(data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  const dataObj = new Date(data)
+  const dataFormatada = dataObj.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  const horaFormatada = dataObj.toLocaleTimeString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  return `${dataFormatada} às ${horaFormatada}`
 }
 
 export default async function PortalComunicadosPage() {
@@ -52,7 +60,7 @@ export default async function PortalComunicadosPage() {
 
   const { data: comunicados } = await supabase
     .from('comunicados')
-    .select('id, titulo, tipo, mensagem, status, created_at')
+    .select('id, titulo, tipo, mensagem, status, requer_resposta, created_at')
     .eq('cliente_id', cliente.id)
     .order('created_at', { ascending: false })
     .returns<Comunicado[]>()
@@ -61,6 +69,11 @@ export default async function PortalComunicadosPage() {
     <div>
       <h1 className="mb-8 font-display text-2xl font-semibold text-navy">Comunicados</h1>
 
+      {/* mt-[83px]: mesmo valor (e mesmo cálculo) já usado na grade de cards
+          da Home do Portal — alinha o início do conteúdo com a linha azul
+          de navegação da sidebar. Estrutura idêntica à da Home (h1 sozinho,
+          1 linha, mb-8), então o mesmo valor se aplica sem recálculo. */}
+      <div className="mt-[83px]">
       {!comunicados || comunicados.length === 0 ? (
         <p className="text-sm text-navy-soft">Nenhum comunicado recebido ainda.</p>
       ) : (
@@ -91,15 +104,22 @@ export default async function PortalComunicadosPage() {
                 </span>
               </div>
 
-              <p className="text-sm text-charcoal">{comunicado.mensagem}</p>
-
-              {comunicado.tipo === 'solicitacao_documento' && comunicado.status === 'pendente' && (
-                <ResponderComunicado comunicadoId={comunicado.id} clienteId={cliente.id} />
-              )}
+              <div className="mt-3">
+                <ComunicadoThread
+                  comunicadoId={comunicado.id}
+                  clienteId={cliente.id}
+                  tipoComunicado={comunicado.tipo === 'solicitacao_documento' ? 'solicitacao_documento' : 'aviso'}
+                  tituloComunicado={comunicado.titulo}
+                  nomeCliente={cliente.nome_empresa}
+                  statusComunicado={comunicado.status}
+                  requerResposta={comunicado.requer_resposta}
+                />
+              </div>
             </div>
           ))}
         </div>
       )}
+      </div>
     </div>
   )
 }

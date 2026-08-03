@@ -116,7 +116,12 @@ export default async function HistoricoPage({
         Registro de ações realizadas no painel administrativo — por enquanto, só ações de Clientes.
       </p>
 
-      <form action="/admin/historico" className="mb-6 flex flex-wrap items-center gap-3">
+      {/* mt-[37px]: alinha o início do conteúdo com a linha azul de
+          navegação da sidebar (161px de altura do cabeçalho da sidebar,
+          menos os 124px que padding-top do <main> (64px) + o bloco de
+          título+descrição (60px: h1 + colapso de 8px + parágrafo) já
+          ocupam — mesmo cálculo já usado no Dashboard Financeiro). */}
+      <form action="/admin/historico" className="mt-[37px] mb-6 flex flex-wrap items-center gap-3">
         <label htmlFor="acao" className="font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
           Tipo de ação
         </label>

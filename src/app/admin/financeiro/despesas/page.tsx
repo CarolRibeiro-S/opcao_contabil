@@ -85,9 +85,14 @@ export default async function DespesasPage({
         </Link>
       </div>
 
+      {/* mt-[61px]: alinha o início do conteúdo com a linha azul de
+          navegação da sidebar (161px de altura do cabeçalho da sidebar,
+          menos os 100px que padding-top do <main> (64px) + a linha de
+          título+botão (36px) já ocupam — mesmo cálculo de Clientes/Tarefas/
+          Prazos/Honorários/Equipe). */}
       <form
         action="/admin/financeiro/despesas"
-        className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-rule bg-white p-4"
+        className="mt-[61px] mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-rule bg-white p-4"
       >
         <div>
           <label htmlFor="competencia" className="mb-1 block font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">

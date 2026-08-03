@@ -12,6 +12,7 @@ export type SidebarLink = {
   label: string
   icon: IconKey
   subLinks?: { href: string; label: string }[]
+  badge?: number
 }
 
 export function estaAtivo(pathname: string, href: string) {
@@ -49,6 +50,11 @@ export function SidebarNavItem({ link, onClick }: { link: SidebarLink; onClick?:
           {ativo && <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-lime" />}
           <Icon className="h-5 w-5 shrink-0" />
           <span className="min-w-0 flex-1 truncate">{link.label}</span>
+          {!!link.badge && (
+            <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1 font-mono text-[10px] font-semibold text-white">
+              {link.badge}
+            </span>
+          )}
         </Link>
 
         {link.subLinks && link.subLinks.length > 0 && (
@@ -120,12 +126,22 @@ export default function Sidebar({
 }) {
   return (
     <aside className="hidden w-[260px] shrink-0 flex-col bg-navy md:flex">
-      <div className="flex flex-col items-center gap-2 border-b border-rule bg-paper px-6 pt-7 pb-6 text-center">
-        <Image src={logoSrc} alt="Opção Contábil" priority className="h-20 w-auto" />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-navy">{titulo}</p>
+      {/* Altura sempre automática (sem h-* fixo) — cresce com o texto do
+          título em vez de cortar ou vazar sobre a nav/conteúdo abaixo. */}
+      <div className="flex min-w-0 flex-col items-center gap-2 border-b border-rule bg-paper px-6 pt-7 pb-6 text-center">
+        <Image src={logoSrc} alt="Opção Contábil" priority className="h-20 w-auto shrink-0" />
+        <div className="min-w-0 w-full">
+          <p
+            title={titulo}
+            className="line-clamp-2 overflow-hidden break-words text-sm font-semibold text-navy"
+          >
+            {titulo}
+          </p>
           {subtitulo && (
-            <p className="mt-0.5 truncate font-mono text-[10.5px] uppercase tracking-[0.1em] text-navy-soft">
+            <p
+              title={subtitulo}
+              className="mt-0.5 truncate font-mono text-[10.5px] uppercase tracking-[0.1em] text-navy-soft"
+            >
               {subtitulo}
             </p>
           )}

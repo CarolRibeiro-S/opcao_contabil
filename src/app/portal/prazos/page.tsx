@@ -56,52 +56,58 @@ export default async function PortalPrazosPage() {
     <div>
       <h1 className="mb-8 font-display text-2xl font-semibold text-navy">Prazos</h1>
 
-      {!prazos || prazos.length === 0 ? (
-        <p className="text-sm text-navy-soft">Nenhum prazo cadastrado ainda.</p>
-      ) : (
-        <div className="overflow-hidden rounded-lg border border-rule bg-white">
-          <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-left text-sm">
-            <thead className="bg-paper-dim">
-              <tr>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Obrigação
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Competência
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Vencimento
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {prazos.map((prazo) => (
-                <tr key={prazo.id} className="border-t border-rule">
-                  <td className="px-4 py-3 font-medium text-navy">
-                    {prazo.obrigacoes_acessorias?.nome ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 text-charcoal">{formatarCompetencia(prazo.competencia)}</td>
-                  <td className="px-4 py-3 text-charcoal">{formatarData(prazo.data_vencimento)}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${
-                        statusBadge[prazo.status] ?? 'border border-rule bg-paper-dim text-navy-soft'
-                      }`}
-                    >
-                      {statusLabel[prazo.status] ?? prazo.status}
-                    </span>
-                  </td>
+      {/* mt-[83px]: mesmo valor (e mesmo cálculo) já usado na grade de cards
+          da Home do Portal — alinha o início do conteúdo com a linha azul
+          de navegação da sidebar. Estrutura idêntica à da Home (h1 sozinho,
+          1 linha, mb-8), então o mesmo valor se aplica sem recálculo. */}
+      <div className="mt-[83px]">
+        {!prazos || prazos.length === 0 ? (
+          <p className="text-sm text-navy-soft">Nenhum prazo cadastrado ainda.</p>
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-rule bg-white">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead className="bg-paper-dim">
+                <tr>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Obrigação
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Competência
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Vencimento
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Status
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {prazos.map((prazo) => (
+                  <tr key={prazo.id} className="border-t border-rule">
+                    <td className="px-4 py-3 font-medium text-navy">
+                      {prazo.obrigacoes_acessorias?.nome ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-charcoal">{formatarCompetencia(prazo.competencia)}</td>
+                    <td className="px-4 py-3 text-charcoal">{formatarData(prazo.data_vencimento)}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${
+                          statusBadge[prazo.status] ?? 'border border-rule bg-paper-dim text-navy-soft'
+                        }`}
+                      >
+                        {statusLabel[prazo.status] ?? prazo.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

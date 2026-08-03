@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/prazos",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/gerar-prazos",
+      "schedule": "0 9 * * 1"
     }
   ]
 }

@@ -43,10 +43,24 @@ export default function ConvidarClientePortal({
 
   if (temAcesso) {
     return (
-      <span className={`${badgeBaseClasses} border border-[#c8e2a1] bg-[#eef7e0] text-[#4f8f2a]`}>
-        <span className="h-1.5 w-1.5 rounded-full bg-[#4f8f2a]" />
-        Portal: acesso ativo
-      </span>
+      <div className="flex flex-wrap items-center gap-3">
+        <span className={`${badgeBaseClasses} border border-[#c8e2a1] bg-[#eef7e0] text-[#4f8f2a]`}>
+          <span className="h-1.5 w-1.5 rounded-full bg-[#4f8f2a]" />
+          Portal: acesso ativo
+        </span>
+
+        <button
+          type="button"
+          onClick={handleConvidar}
+          disabled={loading || sucesso}
+          title="Envia um novo link de definição de senha, útil se o link original expirou"
+          className="text-xs font-semibold text-navy-soft underline decoration-dotted underline-offset-2 transition-colors duration-200 hover:text-navy disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading ? 'Reenviando...' : sucesso ? 'Convite reenviado!' : 'Reenviar convite'}
+        </button>
+
+        {error && <span className="text-xs text-red-600">{error}</span>}
+      </div>
     )
   }
 

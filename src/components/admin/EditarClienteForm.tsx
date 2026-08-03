@@ -27,6 +27,8 @@ type Cliente = {
   cnpj_cpf: string | null
   tipo: string
   regime_tributario: string | null
+  possui_empregados: boolean | null
+  obrigado_efd_contribuicoes: boolean | null
   segmento: string | null
   responsavel: string | null
   email: string | null
@@ -66,6 +68,8 @@ export default function EditarClienteForm({
     cliente.tipo === 'mei' ? 'mei' : 'pessoa_juridica'
   )
   const [regimeTributario, setRegimeTributario] = useState(cliente.regime_tributario ?? '')
+  const [possuiEmpregados, setPossuiEmpregados] = useState(!!cliente.possui_empregados)
+  const [obrigadoEfdContribuicoes, setObrigadoEfdContribuicoes] = useState(!!cliente.obrigado_efd_contribuicoes)
   const [segmento, setSegmento] = useState(cliente.segmento ?? SEGMENTOS[0])
   const [responsavel, setResponsavel] = useState(cliente.responsavel ?? '')
   const [email, setEmail] = useState(cliente.email ?? '')
@@ -95,6 +99,8 @@ export default function EditarClienteForm({
         cnpj_cpf: cnpjCpf || null,
         tipo,
         regime_tributario: tipo === 'mei' ? null : regimeTributario || null,
+        possui_empregados: tipo === 'mei' ? false : possuiEmpregados,
+        obrigado_efd_contribuicoes: tipo === 'mei' ? false : obrigadoEfdContribuicoes,
         segmento,
         responsavel: responsavel || null,
         email: email || null,
@@ -140,8 +146,14 @@ export default function EditarClienteForm({
       }
     }
 
-    for (const arquivo of anexos) {
-      const caminhoArquivo = `${cliente.id}/${arquivo.name}`
+    for (const [index, arquivo] of anexos.entries()) {
+      // Timestamp (+ índice, já que o input aceita vários arquivos de uma
+      // vez — dois podem ter o mesmo nome e cair no mesmo milissegundo)
+      // evita "resource already exists" quando o mesmo nome de arquivo é
+      // enviado mais de uma vez pro mesmo cliente, ex: reenviar uma versão
+      // atualizada de um documento — mesmo padrão já usado no
+      // ThreadComunicado e nos outros pontos de upload de documentos.
+      const caminhoArquivo = `${cliente.id}/${Date.now()}-${index}-${arquivo.name}`
 
       const { error: uploadError } = await supabase.storage
         .from('documentos-clientes')
@@ -272,6 +284,29 @@ export default function EditarClienteForm({
               <option value="lucro_presumido">Lucro Presumido</option>
               <option value="lucro_real">Lucro Real</option>
             </select>
+          </div>
+        )}
+
+        {tipo === 'pessoa_juridica' && (
+          <div className="flex flex-col gap-2.5">
+            <label className="flex items-center gap-2.5 text-sm text-charcoal">
+              <input
+                type="checkbox"
+                checked={possuiEmpregados}
+                onChange={(e) => setPossuiEmpregados(e.target.checked)}
+                className="h-4 w-4 accent-lime"
+              />
+              Possui empregados?
+            </label>
+            <label className="flex items-center gap-2.5 text-sm text-charcoal">
+              <input
+                type="checkbox"
+                checked={obrigadoEfdContribuicoes}
+                onChange={(e) => setObrigadoEfdContribuicoes(e.target.checked)}
+                className="h-4 w-4 accent-lime"
+              />
+              Obrigado à EFD-Contribuições?
+            </label>
           </div>
         )}
 

@@ -32,11 +32,18 @@ export default async function ClientesPage() {
         </div>
       </div>
 
-      {!clientes || clientes.length === 0 ? (
-        <p className="text-sm text-navy-soft">Nenhum cliente cadastrado ainda.</p>
-      ) : (
-        <ClientesTable clientes={clientes} />
-      )}
+      {/* mt-[61px]: alinha o início do conteúdo com a linha azul de
+          navegação da sidebar (161px de altura do cabeçalho da sidebar no
+          Admin, menos os 100px que o padding-top do <main> (64px) + esta
+          linha de título+botões (36px, dominada pelo botão "+ Novo
+          Cliente", mais alto que o h1) já ocupam até aqui). */}
+      <div className="mt-[61px]">
+        {!clientes || clientes.length === 0 ? (
+          <p className="text-sm text-navy-soft">Nenhum cliente cadastrado ainda.</p>
+        ) : (
+          <ClientesTable clientes={clientes} />
+        )}
+      </div>
     </div>
   )
 }

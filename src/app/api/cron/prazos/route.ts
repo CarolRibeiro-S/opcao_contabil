@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { emailAlertaPrazo, emailAlertaTarefa, emailResumoDiarioAdmin } from '@/lib/email/templates'
+import { emailAlertaPrazo, emailAlertaPrazoAntecipado, emailAlertaTarefa, emailResumoDiarioAdmin } from '@/lib/email/templates'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,6 +9,7 @@ type Prazo = {
   id: string
   status: string
   data_vencimento: string | null
+  notificado_10_em: string | null
   clientes: { nome_empresa: string; email: string | null } | null
   obrigacoes_acessorias: { nome: string } | null
 }
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
 
   const { data: prazos, error } = await supabase
     .from('prazos')
-    .select('id, status, data_vencimento, clientes(nome_empresa, email), obrigacoes_acessorias(nome)')
+    .select('id, status, data_vencimento, notificado_10_em, clientes(nome_empresa, email), obrigacoes_acessorias(nome)')
     .in('status', ['pendente', 'atencao'])
     .returns<Prazo[]>()
 
@@ -68,10 +69,12 @@ export async function GET(request: Request) {
   let viraramAtencao = 0
   let viraramVencido = 0
   let emailsEnviados = 0
+  let alertas10DiasEnviados = 0
   let puladosPorFaltaDeEmail = 0
 
   const novosEmAtencao: ItemResumo[] = []
   const vencidosHoje: ItemResumo[] = []
+  const lembretes10Dias: ItemResumo[] = []
 
   for (const prazo of prazos ?? []) {
     if (!prazo.data_vencimento) continue
@@ -85,6 +88,42 @@ export async function GET(request: Request) {
       viraramVencido += 1
       vencidosHoje.push({ nomeCliente, nomeObrigacao })
       continue
+    }
+
+    // Alerta antecipado (10 dias) — janela mais cedo que a de 5 dias, não
+    // muda o status do prazo (só o alerta de 5 dias vira 'atencao'), só
+    // manda o e-mail e marca notificado_10_em pra não repetir no próximo run.
+    if (diasRestantes <= 10 && diasRestantes > 5 && !prazo.notificado_10_em) {
+      const email = prazo.clientes?.email
+
+      if (!email) {
+        puladosPorFaltaDeEmail += 1
+      } else {
+        const { subject, html } = emailAlertaPrazoAntecipado({
+          nomeCliente,
+          nomeObrigacao,
+          dataVencimento: prazo.data_vencimento,
+          diasRestantes,
+        })
+
+        const { error: emailError } = await resend.emails.send({
+          from: 'naoresponda@opcaocontabilbsb.com.br',
+          to: email,
+          cc: process.env.ADMIN_ALERT_EMAIL,
+          subject,
+          html,
+        })
+
+        if (!emailError) {
+          await supabase
+            .from('prazos')
+            .update({ notificado_10_em: new Date().toISOString() })
+            .eq('id', prazo.id)
+
+          alertas10DiasEnviados += 1
+          lembretes10Dias.push({ nomeCliente, nomeObrigacao })
+        }
+      }
     }
 
     if (diasRestantes <= 5 && prazo.status === 'pendente') {
@@ -171,6 +210,7 @@ export async function GET(request: Request) {
   const { subject: resumoSubject, html: resumoHtml } = emailResumoDiarioAdmin({
     novosEmAtencao,
     vencidosHoje,
+    lembretes10Dias,
     tarefasProximas,
   })
 
@@ -185,6 +225,7 @@ export async function GET(request: Request) {
     viraramAtencao,
     viraramVencido,
     emailsEnviados,
+    alertas10DiasEnviados,
     puladosPorFaltaDeEmail,
     tarefasNotificadas,
     resumoEnviado: !resumoError,
