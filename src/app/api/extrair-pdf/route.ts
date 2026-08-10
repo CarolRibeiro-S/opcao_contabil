@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { extrairDadosPdf, type DadosExtraidosPdf } from '@/lib/pdfExtracao'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
