@@ -20,6 +20,15 @@ export const TIPOS_PADRAO = [
 // não listar "TIPO - VENCIMENTO" no e-mail pra esses arquivos.
 export const TIPOS_SEM_VENCIMENTO = ['Extrato do Simples Nacional']
 
+// "PARCELA" (cobre "PARCELA" e "PARCELAMENTO" como substring) fica de fora
+// dessa lista e é checada à parte, com prioridade máxima, em detectarTipo —
+// assim um nome como "PARCELAMENTO INSS" vira Parcelamento, não INSS. As
+// demais palavras aqui (incluindo PGFN, GDF, RECEITA, que também indicam
+// parcelamento mas sem a palavra "parcela" no nome) seguem a ordem normal:
+// primeiro match no array vence.
+const PALAVRA_PARCELA = 'PARCELA'
+const TIPO_PARCELAMENTO = 'Parcelamento'
+
 const PALAVRAS_CHAVE_TIPO: { palavra: string; tipo: string }[] = [
   { palavra: 'COFINS', tipo: 'COFINS' },
   { palavra: 'PIS', tipo: 'PIS' },
@@ -34,8 +43,9 @@ const PALAVRAS_CHAVE_TIPO: { palavra: string; tipo: string }[] = [
   { palavra: 'TAXA', tipo: 'Taxas' },
   { palavra: 'IRRF', tipo: 'IRRF' },
   { palavra: 'DARF', tipo: 'DARF' },
-  { palavra: 'PARCELA', tipo: 'Parcelamento' },
-  { palavra: 'PGFN', tipo: 'Parcelamento' },
+  { palavra: 'PGFN', tipo: TIPO_PARCELAMENTO },
+  { palavra: 'GDF', tipo: TIPO_PARCELAMENTO },
+  { palavra: 'RECEITA', tipo: TIPO_PARCELAMENTO },
   { palavra: 'EXTRATO', tipo: 'Extrato do Simples Nacional' },
 ]
 
@@ -49,6 +59,10 @@ export function normalizarTexto(texto: string) {
 
 export function detectarTipo(nomeArquivo: string): string | null {
   const normalizado = normalizarTexto(nomeArquivo)
+
+  if (normalizado.includes(PALAVRA_PARCELA)) {
+    return TIPO_PARCELAMENTO
+  }
 
   for (const { palavra, tipo } of PALAVRAS_CHAVE_TIPO) {
     if (normalizado.includes(palavra)) {
