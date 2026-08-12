@@ -1,4 +1,24 @@
-export const TIPOS_PADRAO = ['ISS', 'PIS', 'COFINS', 'INSS', 'FGTS', 'IRPJ', 'CSSL', 'DAS']
+export const TIPOS_PADRAO = [
+  'ISS',
+  'PIS',
+  'COFINS',
+  'INSS',
+  'FGTS',
+  'IRPJ',
+  'CSSL',
+  'DAS',
+  'IRRF',
+  'DARF',
+  'Parcelamento',
+  'Honorários',
+  'Taxas',
+  'Extrato do Simples Nacional',
+]
+
+// Tipos de documento informativo, sem data de vencimento (ex: extrato do
+// Simples Nacional). Usado pra Etapa 2 não exigir vencimento e pra Etapa 3
+// não listar "TIPO - VENCIMENTO" no e-mail pra esses arquivos.
+export const TIPOS_SEM_VENCIMENTO = ['Extrato do Simples Nacional']
 
 const PALAVRAS_CHAVE_TIPO: { palavra: string; tipo: string }[] = [
   { palavra: 'COFINS', tipo: 'COFINS' },
@@ -10,6 +30,13 @@ const PALAVRAS_CHAVE_TIPO: { palavra: string; tipo: string }[] = [
   { palavra: 'IRPJ', tipo: 'IRPJ' },
   { palavra: 'CSSL', tipo: 'CSSL' },
   { palavra: 'CSLL', tipo: 'CSSL' },
+  { palavra: 'HONORARIO', tipo: 'Honorários' },
+  { palavra: 'TAXA', tipo: 'Taxas' },
+  { palavra: 'IRRF', tipo: 'IRRF' },
+  { palavra: 'DARF', tipo: 'DARF' },
+  { palavra: 'PARCELA', tipo: 'Parcelamento' },
+  { palavra: 'PGFN', tipo: 'Parcelamento' },
+  { palavra: 'EXTRATO', tipo: 'Extrato do Simples Nacional' },
 ]
 
 export function normalizarTexto(texto: string) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { TIPOS_PADRAO, type ArquivoRevisado, type ClienteOption } from '@/lib/envioMensal'
+import { TIPOS_PADRAO, TIPOS_SEM_VENCIMENTO, type ArquivoRevisado, type ClienteOption } from '@/lib/envioMensal'
 import EnvioMensalArquivos from '@/components/admin/EnvioMensalArquivos'
 import EnvioMensalConfirmacao from '@/components/admin/EnvioMensalConfirmacao'
 
@@ -64,7 +64,7 @@ export default function EnvioMensalPage() {
     const datasPorTipo = new Map<string, string[]>()
 
     for (const arquivo of arquivos) {
-      if (!arquivo.tipo || !arquivo.dataVencimento) continue
+      if (!arquivo.tipo || !arquivo.dataVencimento || TIPOS_SEM_VENCIMENTO.includes(arquivo.tipo)) continue
       const lista = datasPorTipo.get(arquivo.tipo) ?? []
       lista.push(arquivo.dataVencimento)
       datasPorTipo.set(arquivo.tipo, lista)

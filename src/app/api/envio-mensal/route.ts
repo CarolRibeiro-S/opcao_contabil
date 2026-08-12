@@ -3,6 +3,7 @@ import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { emailImpostosMensal } from '@/lib/email/templates'
+import { TIPOS_SEM_VENCIMENTO } from '@/lib/envioMensal'
 
 export const dynamic = 'force-dynamic'
 
@@ -120,16 +121,25 @@ export async function POST(request: Request) {
     }
 
     const itens = grupo.arquivos
-      .filter((arquivoInfo) => !!arquivoInfo.dataVencimento)
+      .filter((arquivoInfo) => !!arquivoInfo.dataVencimento && !TIPOS_SEM_VENCIMENTO.includes(arquivoInfo.tipo))
       .map((arquivoInfo) => ({
         tipo: arquivoInfo.tipo,
         dataVencimento: arquivoInfo.dataVencimento,
       }))
 
+    const itensInformativos = [
+      ...new Set(
+        grupo.arquivos
+          .filter((arquivoInfo) => TIPOS_SEM_VENCIMENTO.includes(arquivoInfo.tipo))
+          .map((arquivoInfo) => arquivoInfo.tipo)
+      ),
+    ]
+
     const { subject, html } = emailImpostosMensal({
       nomeCliente: cliente.nome_empresa,
       competencia: `${competencia}-01`,
       itens,
+      itensInformativos,
     })
 
     const { error: emailError } = await resend.emails.send({

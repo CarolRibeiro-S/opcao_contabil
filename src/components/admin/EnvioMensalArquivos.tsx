@@ -5,6 +5,7 @@ import {
   detectarClienteId,
   detectarClientePorCnpj,
   detectarTipo,
+  TIPOS_SEM_VENCIMENTO,
   type ArquivoRevisado,
   type ClienteOption,
   type OrigemDeteccao,
@@ -140,6 +141,7 @@ export default function EnvioMensalArquivos({
               ...arquivo,
               [campo]: valor,
               ...(campo === 'clienteId' ? { origemDeteccao: 'manual' as OrigemDeteccao } : {}),
+              ...(campo === 'tipo' && TIPOS_SEM_VENCIMENTO.includes(valor) ? { dataVencimento: '' } : {}),
             }
           : arquivo
       )
@@ -160,7 +162,12 @@ export default function EnvioMensalArquivos({
   const todosCompletos =
     arquivos.length > 0 &&
     !aindaProcessando &&
-    arquivos.every((arquivo) => arquivo.clienteId && arquivo.tipo && arquivo.dataVencimento)
+    arquivos.every(
+      (arquivo) =>
+        arquivo.clienteId &&
+        arquivo.tipo &&
+        (arquivo.dataVencimento || TIPOS_SEM_VENCIMENTO.includes(arquivo.tipo))
+    )
 
   function nomeCliente(clienteId: string) {
     return clientes.find((cliente) => cliente.id === clienteId)?.nome_empresa ?? 'Cliente'
@@ -349,12 +356,16 @@ function LinhaArquivo({
         ))}
       </select>
 
-      <input
-        type="date"
-        value={arquivo.dataVencimento}
-        onChange={(event) => onAtualizar(arquivo.id, 'dataVencimento', event.target.value)}
-        className="shrink-0 rounded-[3px] border border-rule bg-white px-2 py-1.5 text-xs text-charcoal outline-none focus:border-lime"
-      />
+      {TIPOS_SEM_VENCIMENTO.includes(arquivo.tipo) ? (
+        <span className="shrink-0 px-2 py-1.5 text-xs italic text-navy-soft">Não se aplica</span>
+      ) : (
+        <input
+          type="date"
+          value={arquivo.dataVencimento}
+          onChange={(event) => onAtualizar(arquivo.id, 'dataVencimento', event.target.value)}
+          className="shrink-0 rounded-[3px] border border-rule bg-white px-2 py-1.5 text-xs text-charcoal outline-none focus:border-lime"
+        />
+      )}
 
       <button
         type="button"

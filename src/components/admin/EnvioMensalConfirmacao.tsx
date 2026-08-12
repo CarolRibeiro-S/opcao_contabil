@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import type { ArquivoRevisado, ClienteOption } from '@/lib/envioMensal'
+import { TIPOS_SEM_VENCIMENTO, type ArquivoRevisado, type ClienteOption } from '@/lib/envioMensal'
+import { mensagemInformativa } from '@/lib/email/templates'
 
 const TAMANHO_LOTE = 5
 
@@ -177,19 +178,32 @@ export default function EnvioMensalConfirmacao({
 
       <div className="flex flex-col gap-4">
         {Array.from(gruposPorCliente.entries()).map(([clienteId, arquivos]) => {
+          const comVencimento = arquivos.filter((arquivo) => !TIPOS_SEM_VENCIMENTO.includes(arquivo.tipo))
+          const informativos = arquivos.filter((arquivo) => TIPOS_SEM_VENCIMENTO.includes(arquivo.tipo))
+          const tiposInformativos = [...new Set(informativos.map((arquivo) => arquivo.tipo))]
+
           return (
             <div key={clienteId} className="rounded-lg border border-rule bg-white p-4">
               <h3 className="mb-2 font-display text-base font-semibold text-navy">{nomeCliente(clienteId)}</h3>
               <div className="rounded-md bg-paper-dim p-3 font-mono text-[12.5px] text-charcoal">
-                {arquivos.map((arquivo) => (
-                  <p key={arquivo.id}>
-                    {arquivo.tipo} - VENCIMENTO{' '}
-                    {arquivo.dataVencimento ? formatarData(arquivo.dataVencimento) : '—'}
+                {comVencimento.length > 0 && (
+                  <>
+                    {comVencimento.map((arquivo) => (
+                      <p key={arquivo.id}>
+                        {arquivo.tipo} - VENCIMENTO{' '}
+                        {arquivo.dataVencimento ? formatarData(arquivo.dataVencimento) : '—'}
+                      </p>
+                    ))}
+                    <p className="mt-2 text-navy-soft">
+                      Segue os impostos referente ao mês {formatarCompetencia(competencia)}.
+                    </p>
+                  </>
+                )}
+                {tiposInformativos.map((tipo) => (
+                  <p key={tipo} className="mt-2 text-navy-soft">
+                    {mensagemInformativa(tipo)}
                   </p>
                 ))}
-                <p className="mt-2 text-navy-soft">
-                  Segue os impostos referente ao mês {formatarCompetencia(competencia)}.
-                </p>
               </div>
               <p className="mt-2 text-xs text-navy-soft">
                 {arquivos.length} anexo(s): {arquivos.map((arquivo) => arquivo.file.name).join(', ')}

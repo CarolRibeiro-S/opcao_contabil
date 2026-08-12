@@ -440,9 +440,23 @@ type EmailImpostosMensalParams = {
   nomeCliente: string
   competencia: string
   itens: ItemImposto[]
+  itensInformativos?: string[]
 }
 
-export function emailImpostosMensal({ nomeCliente, competencia, itens }: EmailImpostosMensalParams) {
+// Frase usada tanto na prévia da Etapa 3 quanto no e-mail de verdade pra
+// documentos informativos (sem vencimento), como o extrato do Simples
+// Nacional.
+export function mensagemInformativa(tipo: string) {
+  if (tipo === 'Extrato do Simples Nacional') return 'Segue seu extrato do Simples Nacional.'
+  return `Segue o(a) ${tipo}.`
+}
+
+export function emailImpostosMensal({
+  nomeCliente,
+  competencia,
+  itens,
+  itensInformativos = [],
+}: EmailImpostosMensalParams) {
   const [ano, mes] = competencia.split('-')
   const competenciaFormatada = `${mes}/${ano}`
 
@@ -459,6 +473,26 @@ export function emailImpostosMensal({ nomeCliente, competencia, itens }: EmailIm
                     <strong style="color:#8dc63f;">${dataFormatada}</strong>
                   </li>`
     })
+    .join('')
+
+  const blocoVencimentos =
+    itens.length > 0
+      ? `
+                <ul style="margin:0 0 20px; padding-left:18px;">
+                  ${linhasItens}
+                </ul>
+                <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
+                  Segue os impostos referente ao mês ${competenciaFormatada}.
+                </p>`
+      : ''
+
+  const blocoInformativos = itensInformativos
+    .map(
+      (tipo) => `
+                <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
+                  ${mensagemInformativa(tipo)}
+                </p>`
+    )
     .join('')
 
   const html = `
@@ -480,13 +514,7 @@ export function emailImpostosMensal({ nomeCliente, competencia, itens }: EmailIm
               <td style="padding:28px;">
                 <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
                   Olá, <strong>${nomeCliente}</strong>,
-                </p>
-                <ul style="margin:0 0 20px; padding-left:18px;">
-                  ${linhasItens}
-                </ul>
-                <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
-                  Segue os impostos referente ao mês ${competenciaFormatada}.
-                </p>
+                </p>${blocoVencimentos}${blocoInformativos}
                 <p style="margin:0; color:#55564a; font-size:13px;">
                   — Opção Contábil
                 </p>
