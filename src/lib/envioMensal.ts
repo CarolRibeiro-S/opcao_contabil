@@ -90,6 +90,97 @@ export function detectarClienteId(
   return null
 }
 
+// Palavras genéricas de razão social que não ajudam a identificar um
+// cliente específico (aparecem em qualquer empresa) — ficam de fora da
+// comparação por nome em detectarClientePorNomeEmpresa.
+const PALAVRAS_GENERICAS_NOME_EMPRESA = [
+  'LTDA',
+  'ME',
+  'EPP',
+  'SS',
+  'EIRELI',
+  'MEI',
+  'DE',
+  'DA',
+  'DO',
+  'E',
+  'COMERCIO',
+  'SERVICOS',
+  'CONSULTORIA',
+]
+
+// Terceira tentativa de reconhecimento (depois de CNPJ e apelido): quebra
+// o nome_empresa em palavras, descarta as genéricas/curtas, e vê se alguma
+// palavra restante aparece no nome do arquivo.
+export function detectarClientePorNomeEmpresa(
+  nomeArquivo: string,
+  clientes: { id: string; nome_empresa: string }[]
+): string | null {
+  const normalizado = normalizarTexto(nomeArquivo)
+
+  for (const cliente of clientes) {
+    const palavras = cliente.nome_empresa
+      .split(/\s+/)
+      .map((palavra) => normalizarTexto(palavra))
+      .filter((palavra) => palavra.length >= 4 && !PALAVRAS_GENERICAS_NOME_EMPRESA.includes(palavra))
+
+    if (palavras.some((palavra) => normalizado.includes(palavra))) {
+      return cliente.id
+    }
+  }
+
+  return null
+}
+
+export type ProfissionalOption = {
+  clienteId: string
+  nome: string
+}
+
+// Quarta tentativa: pra clínicas, o nome do médico/profissional às vezes
+// aparece no nome do arquivo em vez do nome da clínica.
+export function detectarClientePorProfissional(
+  nomeArquivo: string,
+  profissionais: ProfissionalOption[]
+): string | null {
+  const normalizado = normalizarTexto(nomeArquivo)
+
+  for (const profissional of profissionais) {
+    const nomeNormalizado = normalizarTexto(profissional.nome)
+    if (nomeNormalizado && normalizado.includes(nomeNormalizado)) {
+      return profissional.clienteId
+    }
+  }
+
+  return null
+}
+
+export type DeteccaoClientePorNome = {
+  clienteId: string
+  origemDeteccao: 'apelido' | 'nome' | 'medico' | 'manual'
+}
+
+// Roda as três tentativas baseadas só no nome do arquivo, na ordem de
+// prioridade: apelido → nome da empresa/palavra → nome de profissional.
+// CNPJ (a mais confiável) roda à parte, depois da extração do PDF, e tem
+// prioridade sobre o resultado daqui.
+export function detectarClientePorNomeArquivo(
+  nomeArquivo: string,
+  clientes: ClienteOption[],
+  profissionais: ProfissionalOption[]
+): DeteccaoClientePorNome {
+  const porApelido = detectarClienteId(nomeArquivo, clientes)
+  if (porApelido) return { clienteId: porApelido, origemDeteccao: 'apelido' }
+
+  const porNomeEmpresa = detectarClientePorNomeEmpresa(nomeArquivo, clientes)
+  if (porNomeEmpresa) return { clienteId: porNomeEmpresa, origemDeteccao: 'nome' }
+
+  const porProfissional = detectarClientePorProfissional(nomeArquivo, profissionais)
+  if (porProfissional) return { clienteId: porProfissional, origemDeteccao: 'medico' }
+
+  return { clienteId: '', origemDeteccao: 'manual' }
+}
+
 function somenteDigitos(texto: string) {
   return texto.replace(/\D/g, '')
 }
@@ -129,7 +220,7 @@ export type ImpostoVencimento = {
   dataVencimento: string
 }
 
-export type OrigemDeteccao = 'cnpj' | 'apelido' | 'manual'
+export type OrigemDeteccao = 'cnpj' | 'apelido' | 'nome' | 'medico' | 'manual'
 
 export type ArquivoRevisado = {
   id: string

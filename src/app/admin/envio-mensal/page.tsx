@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { TIPOS_PADRAO, TIPOS_SEM_VENCIMENTO, type ArquivoRevisado, type ClienteOption } from '@/lib/envioMensal'
+import {
+  TIPOS_PADRAO,
+  TIPOS_SEM_VENCIMENTO,
+  type ArquivoRevisado,
+  type ClienteOption,
+  type ProfissionalOption,
+} from '@/lib/envioMensal'
 import EnvioMensalArquivos from '@/components/admin/EnvioMensalArquivos'
 import EnvioMensalConfirmacao from '@/components/admin/EnvioMensalConfirmacao'
 
@@ -43,6 +49,7 @@ export default function EnvioMensalPage() {
   const [competencia, setCompetencia] = useState('')
 
   const [clientes, setClientes] = useState<ClienteOption[]>([])
+  const [profissionais, setProfissionais] = useState<ProfissionalOption[]>([])
   const [arquivosRevisados, setArquivosRevisados] = useState<ArquivoRevisado[]>([])
 
   useEffect(() => {
@@ -54,6 +61,21 @@ export default function EnvioMensalPage() {
         .order('nome_empresa', { ascending: true })
 
       setClientes(data ?? [])
+
+      const idsAtivos = (data ?? []).map((cliente) => cliente.id)
+      if (idsAtivos.length === 0) return
+
+      const { data: profissionaisData } = await supabase
+        .from('profissionais_clinica')
+        .select('cliente_id, nome')
+        .in('cliente_id', idsAtivos)
+
+      setProfissionais(
+        (profissionaisData ?? []).map((profissional) => ({
+          clienteId: profissional.cliente_id,
+          nome: profissional.nome,
+        }))
+      )
     }
 
     carregarClientes()

@@ -2,13 +2,14 @@
 
 import { useRef, useState, type DragEvent } from 'react'
 import {
-  detectarClienteId,
   detectarClientePorCnpj,
+  detectarClientePorNomeArquivo,
   detectarTipo,
   TIPOS_SEM_VENCIMENTO,
   type ArquivoRevisado,
   type ClienteOption,
   type OrigemDeteccao,
+  type ProfissionalOption,
 } from '@/lib/envioMensal'
 
 function ehPdf(file: File) {
@@ -17,12 +18,14 @@ function ehPdf(file: File) {
 
 export default function EnvioMensalArquivos({
   clientes,
+  profissionais,
   tiposDisponiveis,
   arquivosIniciais,
   onVoltar,
   onContinuar,
 }: {
   clientes: ClienteOption[]
+  profissionais: ProfissionalOption[]
   tiposDisponiveis: string[]
   arquivosIniciais: ArquivoRevisado[]
   onVoltar: () => void
@@ -38,15 +41,15 @@ export default function EnvioMensalArquivos({
     if (!lista || lista.length === 0) return
 
     const novos: ArquivoRevisado[] = Array.from(lista).map((file) => {
-      const clienteIdPorApelido = detectarClienteId(file.name, clientes)
+      const deteccao = detectarClientePorNomeArquivo(file.name, clientes, profissionais)
 
       return {
         id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
         file,
-        clienteId: clienteIdPorApelido ?? '',
+        clienteId: deteccao.clienteId,
         tipo: detectarTipo(file.name) ?? '',
         dataVencimento: '',
-        origemDeteccao: (clienteIdPorApelido ? 'apelido' : 'manual') as OrigemDeteccao,
+        origemDeteccao: deteccao.origemDeteccao as OrigemDeteccao,
       }
     })
 
@@ -232,7 +235,8 @@ export default function EnvioMensalArquivos({
             <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
               <h3 className="mb-1 font-display text-base font-semibold text-amber-800">Não identificados</h3>
               <p className="mb-3 text-xs text-amber-700">
-                Não encontramos o CNPJ nem o apelido de nenhum cliente nesses arquivos. Selecione manualmente.
+                Não encontramos o CNPJ, apelido, nome da empresa nem profissional de nenhum cliente nesses
+                arquivos. Selecione manualmente.
               </p>
               <div className="flex flex-col gap-2">
                 {naoIdentificados.map((arquivo) => (
@@ -294,6 +298,22 @@ function Badge({ origem }: { origem: OrigemDeteccao }) {
     return (
       <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
         Apelido
+      </span>
+    )
+  }
+
+  if (origem === 'nome') {
+    return (
+      <span className="shrink-0 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-purple-700">
+        Nome
+      </span>
+    )
+  }
+
+  if (origem === 'medico') {
+    return (
+      <span className="shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-700">
+        Médico
       </span>
     )
   }
