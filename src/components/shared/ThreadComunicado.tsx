@@ -53,6 +53,7 @@ export default function ThreadComunicado({
   nomeCliente,
   statusAtual,
   requerResposta,
+  visualizadoPeloClienteEm,
 }: {
   comunicadoId: string
   clienteId: string
@@ -62,6 +63,7 @@ export default function ThreadComunicado({
   nomeCliente: string
   statusAtual: string
   requerResposta: boolean
+  visualizadoPeloClienteEm?: string | null
 }) {
   const router = useRouter()
   const supabase = createClient()
@@ -99,6 +101,24 @@ export default function ThreadComunicado({
 
         if (vistoError) {
           console.error('[ThreadComunicado] Erro ao marcar conversa como vista:', vistoError)
+        } else {
+          router.refresh()
+        }
+      }
+
+      // Espelha a lógica acima pro lado do cliente: abrir a conversa (esse
+      // componente só monta quando o cliente clica "Ver conversa" no
+      // ComunicadoThread, que fica fechado por padrão) marca "visualizado",
+      // sem exigir nenhuma ação — mesmo padrão de PagamentoCobranca.tsx. Só
+      // marca uma vez (se já tem valor, não sobrescreve).
+      if (autorTipo === 'cliente' && !visualizadoPeloClienteEm) {
+        const { error: visualizadoError } = await supabase
+          .from('comunicados')
+          .update({ visualizado_pelo_cliente_em: new Date().toISOString() })
+          .eq('id', comunicadoId)
+
+        if (visualizadoError) {
+          console.error('[ThreadComunicado] Erro ao marcar comunicado como visualizado:', visualizadoError)
         } else {
           router.refresh()
         }
@@ -407,6 +427,20 @@ export default function ThreadComunicado({
           entidadeNome: `${tituloComunicado} — ${nomeCliente}`,
           detalhes: 'Resposta na conversa.',
         })
+
+        // Mesma ideia de visto_em (acima): quando o ADMIN manda mensagem
+        // nova, o cliente ainda não viu esse conteúdo, então
+        // visualizado_pelo_cliente_em volta a zerar — senão o banner/página
+        // de controle continuariam mostrando esse comunicado como "visto"
+        // mesmo depois de uma resposta nova que o cliente nunca abriu.
+        const { error: visualizadoZeradoError } = await supabase
+          .from('comunicados')
+          .update({ visualizado_pelo_cliente_em: null })
+          .eq('id', comunicadoId)
+
+        if (visualizadoZeradoError) {
+          console.error('[ThreadComunicado] Erro ao zerar visualizado_pelo_cliente_em:', visualizadoZeradoError)
+        }
       }
     }
 

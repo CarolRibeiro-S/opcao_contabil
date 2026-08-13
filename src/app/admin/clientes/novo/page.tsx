@@ -30,6 +30,7 @@ export default function NovoClientePage() {
   const [regimeTributario, setRegimeTributario] = useState('')
   const [possuiEmpregados, setPossuiEmpregados] = useState(false)
   const [obrigadoEfdContribuicoes, setObrigadoEfdContribuicoes] = useState(false)
+  const [emiteNotasFiscais, setEmiteNotasFiscais] = useState(true)
   const [segmento, setSegmento] = useState<string>(SEGMENTOS[0])
   const [responsavel, setResponsavel] = useState('')
   const [email, setEmail] = useState('')
@@ -60,6 +61,7 @@ export default function NovoClientePage() {
         regime_tributario: tipo === 'mei' ? null : regimeTributario || null,
         possui_empregados: tipo === 'mei' ? false : possuiEmpregados,
         obrigado_efd_contribuicoes: tipo === 'mei' ? false : obrigadoEfdContribuicoes,
+        emite_notas_fiscais: emiteNotasFiscais,
         segmento,
         responsavel: responsavel || null,
         email: email || null,
@@ -255,6 +257,16 @@ export default function NovoClientePage() {
             </label>
           </div>
         )}
+
+        <label className="flex items-center gap-2.5 text-sm text-charcoal">
+          <input
+            type="checkbox"
+            checked={emiteNotasFiscais}
+            onChange={(e) => setEmiteNotasFiscais(e.target.checked)}
+            className="h-4 w-4 accent-lime"
+          />
+          Emite notas fiscais? (define se a solicitação mensal de documentos inclui o pedido de XML)
+        </label>
 
         <div>
           <label htmlFor="segmento" className={labelClasses}>

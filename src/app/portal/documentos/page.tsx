@@ -1,4 +1,5 @@
 import { getClienteAtual } from '@/lib/portal/getClienteAtual'
+import MarcarVisualizado from '@/components/portal/MarcarVisualizado'
 
 type Documento = {
   id: string
@@ -45,6 +46,8 @@ export default async function PortalDocumentosPage() {
 
   return (
     <div>
+      <MarcarVisualizado tabela="documentos_clientes" clienteId={cliente.id} />
+
       <h1 className="mb-8 font-display text-2xl font-semibold text-navy">Documentos</h1>
 
       {/* mt-[83px]: mesmo valor (e mesmo cálculo) já usado na grade de cards

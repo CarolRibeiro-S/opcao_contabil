@@ -12,6 +12,7 @@ export default function ComunicadoThread({
   nomeCliente,
   statusComunicado,
   requerResposta,
+  visualizadoPeloClienteEm,
 }: {
   comunicadoId: string
   clienteId: string
@@ -20,6 +21,7 @@ export default function ComunicadoThread({
   nomeCliente: string
   statusComunicado: string
   requerResposta: boolean
+  visualizadoPeloClienteEm: string | null
 }) {
   const [aberto, setAberto] = useState(false)
 
@@ -46,6 +48,7 @@ export default function ComunicadoThread({
             nomeCliente={nomeCliente}
             statusAtual={statusComunicado}
             requerResposta={requerResposta}
+            visualizadoPeloClienteEm={visualizadoPeloClienteEm}
           />
         </div>
       )}

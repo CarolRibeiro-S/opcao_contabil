@@ -30,6 +30,7 @@ type Cliente = {
   regime_tributario: string | null
   possui_empregados: boolean | null
   obrigado_efd_contribuicoes: boolean | null
+  emite_notas_fiscais: boolean | null
   segmento: string | null
   responsavel: string | null
   email: string | null
@@ -71,6 +72,7 @@ export default function EditarClienteForm({
   const [regimeTributario, setRegimeTributario] = useState(cliente.regime_tributario ?? '')
   const [possuiEmpregados, setPossuiEmpregados] = useState(!!cliente.possui_empregados)
   const [obrigadoEfdContribuicoes, setObrigadoEfdContribuicoes] = useState(!!cliente.obrigado_efd_contribuicoes)
+  const [emiteNotasFiscais, setEmiteNotasFiscais] = useState(cliente.emite_notas_fiscais ?? true)
   const [segmento, setSegmento] = useState(cliente.segmento ?? SEGMENTOS[0])
   const [responsavel, setResponsavel] = useState(cliente.responsavel ?? '')
   const [email, setEmail] = useState(cliente.email ?? '')
@@ -102,6 +104,7 @@ export default function EditarClienteForm({
         regime_tributario: tipo === 'mei' ? null : regimeTributario || null,
         possui_empregados: tipo === 'mei' ? false : possuiEmpregados,
         obrigado_efd_contribuicoes: tipo === 'mei' ? false : obrigadoEfdContribuicoes,
+        emite_notas_fiscais: emiteNotasFiscais,
         segmento,
         responsavel: responsavel || null,
         email: email || null,
@@ -310,6 +313,16 @@ export default function EditarClienteForm({
             </label>
           </div>
         )}
+
+        <label className="flex items-center gap-2.5 text-sm text-charcoal">
+          <input
+            type="checkbox"
+            checked={emiteNotasFiscais}
+            onChange={(e) => setEmiteNotasFiscais(e.target.checked)}
+            className="h-4 w-4 accent-lime"
+          />
+          Emite notas fiscais? (define se a solicitação mensal de documentos inclui o pedido de XML)
+        </label>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>

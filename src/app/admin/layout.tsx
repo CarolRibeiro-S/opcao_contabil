@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AdminMobileNav from '@/components/admin/AdminMobileNav'
 import NotificacoesRespostas from '@/components/admin/NotificacoesRespostas'
-import NotificacoesVisualizacoesHonorarios from '@/components/admin/NotificacoesVisualizacoesHonorarios'
+import NotificacoesVisualizacoes from '@/components/admin/NotificacoesVisualizacoes'
 import Sidebar, { type SidebarLink } from '@/components/shared/Sidebar'
 import logo from '../../../public/images/logo-simbolo.png'
 
@@ -76,6 +76,7 @@ const navLinks: SidebarLink[] = [
     subLinks: [{ href: '/admin/equipe/novo', label: 'Convidar membro' }],
   },
   { href: '/admin/historico', label: 'Histórico', icon: 'historico' },
+  { href: '/admin/controle-envios', label: 'Controle de Envios', icon: 'visualizacoes' },
 ]
 
 function encontrarModulo(pathname: string) {
@@ -186,7 +187,7 @@ export default async function AdminLayout({
           topo mudou, por isso vai separado em vez de usar md:p-8 sozinho. */}
       <main className="flex-1 overflow-x-hidden p-6 md:px-8 md:pb-8 md:pt-16">
         <NotificacoesRespostas />
-        <NotificacoesVisualizacoesHonorarios />
+        <NotificacoesVisualizacoes />
         {children}
       </main>
     </div>

@@ -62,12 +62,21 @@ export function ehFeriadoNacional(data: Date): boolean {
   )
 }
 
+// Diz se a data é dia útil (não é sábado, domingo nem feriado nacional) —
+// não antecipa nem avança nada, só responde a pergunta pra quem precisar
+// decidir algo em cima disso (ex: se uma data-base fixa precisa de aviso
+// extra por ter caído num dia não útil).
+export function ehDiaUtil(data: Date): boolean {
+  const diaSemana = data.getUTCDay()
+  return diaSemana !== 0 && diaSemana !== 6 && !ehFeriadoNacional(data)
+}
+
 // Avança a data enquanto for sábado, domingo ou feriado nacional. Se a data
 // de entrada já for dia útil, devolve ela mesma (sem avançar).
 export function proximoDiaUtil(data: Date): Date {
   let resultado = new Date(data)
 
-  while (resultado.getUTCDay() === 0 || resultado.getUTCDay() === 6 || ehFeriadoNacional(resultado)) {
+  while (!ehDiaUtil(resultado)) {
     resultado = somarDiasUTC(resultado, 1)
   }
 
@@ -81,8 +90,7 @@ export function diaUtilDoMes(ano: number, mes: number, n: number): Date {
   let data = new Date(Date.UTC(ano, mes - 1, 1))
 
   while (true) {
-    const diaSemana = data.getUTCDay()
-    if (diaSemana !== 0 && diaSemana !== 6 && !ehFeriadoNacional(data)) {
+    if (ehDiaUtil(data)) {
       contador += 1
       if (contador === n) return data
     }
@@ -96,7 +104,7 @@ export function ultimoDiaUtilDoMes(ano: number, mes: number): Date {
   // dia 0 do mês seguinte, em JS, é o último dia do mês pedido.
   let data = new Date(Date.UTC(ano, mes, 0))
 
-  while (data.getUTCDay() === 0 || data.getUTCDay() === 6 || ehFeriadoNacional(data)) {
+  while (!ehDiaUtil(data)) {
     data = somarDiasUTC(data, -1)
   }
 

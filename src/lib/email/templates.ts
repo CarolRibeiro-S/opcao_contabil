@@ -1,3 +1,5 @@
+import type { TipoEnvioSolicitacaoMensal } from '@/lib/solicitacaoMensal'
+
 // Mensagem composta livremente pelo admin (textarea) — escapa antes de
 // interpolar no HTML pra não deixar "<"/"&" quebrarem o layout do e-mail.
 function escapeHtml(texto: string) {
@@ -448,6 +450,7 @@ type EmailImpostosMensalParams = {
 // Nacional.
 export function mensagemInformativa(tipo: string) {
   if (tipo === 'Extrato do Simples Nacional') return 'Segue seu extrato do Simples Nacional.'
+  if (tipo === 'Documentos da Empresa') return 'Seguem documentos da empresa.'
   return `Segue o(a) ${tipo}.`
 }
 
@@ -515,6 +518,140 @@ export function emailImpostosMensal({
                 <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
                   Olá, <strong>${nomeCliente}</strong>,
                 </p>${blocoVencimentos}${blocoInformativos}
+                <p style="margin:0; color:#55564a; font-size:13px;">
+                  — Opção Contábil
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`.trim()
+
+  return { subject, html }
+}
+
+// URLs das duas artes (envio de XML e extrato bancário) fornecidas pelo
+// escritório — configuradas via env var (hospedar num link público, ex:
+// bucket do Supabase Storage) em vez de embutidas no HTML. Ficam de fora
+// do e-mail enquanto a env var não existir, sem quebrar o layout.
+const URL_IMAGEM_SOLICITACAO_XML = process.env.IMAGEM_SOLICITACAO_XML_URL
+const URL_IMAGEM_SOLICITACAO_EXTRATO = process.env.IMAGEM_SOLICITACAO_EXTRATO_URL
+
+function blocoImagemSolicitacao(url: string | undefined, alt: string) {
+  if (!url) return ''
+
+  return `
+                <p style="margin:0 0 20px;">
+                  <img src="${url}" alt="${alt}" style="max-width:100%; border-radius:6px; display:block;" />
+                </p>`
+}
+
+type TextosSolicitacaoMensal = {
+  titulo: string
+  introducao: string
+}
+
+function textosPorTipoEnvio(tipo: TipoEnvioSolicitacaoMensal, competenciaFormatada: string): TextosSolicitacaoMensal {
+  switch (tipo) {
+    case 'principal':
+      return {
+        titulo: `Solicitação de documentos — ${competenciaFormatada}`,
+        introducao: `Chegou a hora de organizarmos a contabilidade referente a ${competenciaFormatada}. Para isso, precisamos que você nos envie:`,
+      }
+    case 'reforco':
+      return {
+        titulo: `Lembrete: documentos de ${competenciaFormatada} — Opção Contábil`,
+        introducao: `Este é um lembrete: ainda estamos aguardando os documentos referentes a ${competenciaFormatada}. Se você já enviou, pode desconsiderar este e-mail. Precisamos de:`,
+      }
+    case 'aviso_extra_principal':
+      return {
+        titulo: `Solicitação de documentos — ${competenciaFormatada}`,
+        introducao: `O último dia 01 caiu em um dia não útil, então reforçamos aqui o pedido de documentos referentes a ${competenciaFormatada}:`,
+      }
+    case 'aviso_extra_reforco':
+      return {
+        titulo: `Lembrete: documentos de ${competenciaFormatada} — Opção Contábil`,
+        introducao: `O último dia 05 caiu em um dia não útil, então reforçamos aqui o lembrete dos documentos referentes a ${competenciaFormatada}. Se você já enviou, pode desconsiderar este e-mail:`,
+      }
+  }
+}
+
+type EmailSolicitacaoMensalParams = {
+  nomeCliente: string
+  tipo: TipoEnvioSolicitacaoMensal
+  competencia: string // 'YYYY-MM'
+  emiteNotasFiscais: boolean
+  possuiEmpregados: boolean
+  linkPortal: string
+}
+
+export function emailSolicitacaoMensal({
+  nomeCliente,
+  tipo,
+  competencia,
+  emiteNotasFiscais,
+  possuiEmpregados,
+  linkPortal,
+}: EmailSolicitacaoMensalParams) {
+  const [ano, mes] = competencia.split('-')
+  const competenciaFormatada = `${mes}/${ano}`
+
+  const { titulo, introducao } = textosPorTipoEnvio(tipo, competenciaFormatada)
+  const subject = `${titulo} — Opção Contábil`
+
+  const itensLista = [
+    emiteNotasFiscais ? 'XML das notas fiscais emitidas no período' : null,
+    'Extrato bancário do período',
+    'Relação de receitas e despesas do período',
+    possuiEmpregados ? 'Informações de folha de pagamento (faltas, atestados médicos, banco de horas)' : null,
+  ].filter((item): item is string => item !== null)
+
+  const listaHtml = itensLista
+    .map(
+      (item) => `
+                  <li style="margin:0 0 8px; color:#24261f; font-size:14px; line-height:1.5;">${item}</li>`
+    )
+    .join('')
+
+  const blocoImagens = emiteNotasFiscais
+    ? `${blocoImagemSolicitacao(URL_IMAGEM_SOLICITACAO_XML, 'Como enviar o XML das notas fiscais')}${blocoImagemSolicitacao(URL_IMAGEM_SOLICITACAO_EXTRATO, 'Como enviar o extrato bancário')}`
+    : blocoImagemSolicitacao(URL_IMAGEM_SOLICITACAO_EXTRATO, 'Como enviar o extrato bancário')
+
+  const html = `
+<!doctype html>
+<html lang="pt-BR">
+  <body style="margin:0; padding:0; background-color:#f7f8f5; font-family: Arial, Helvetica, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f8f5; padding:32px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; border:1px solid #d8ddd0; overflow:hidden;">
+            <tr>
+              <td style="background-color:#16234a; padding:20px 28px;">
+                <span style="color:#8dc63f; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; font-family: 'Courier New', monospace;">
+                  Opção Contábil
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px;">
+                <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
+                  Olá, <strong>${nomeCliente}</strong>,
+                </p>
+                <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
+                  ${introducao}
+                </p>
+                <ul style="margin:0 0 20px; padding-left:18px;">
+                  ${listaHtml}
+                </ul>
+                ${blocoImagens}
+                <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
+                  Você pode responder direto este e-mail (<a href="mailto:opcaocontabilbsb@gmail.com" style="color:#16234a;">opcaocontabilbsb@gmail.com</a>) ou enviar pelo
+                  <a href="${linkPortal}" style="color:#16234a;">Portal do Cliente</a> — use o que for mais prático para você.
+                </p>
                 <p style="margin:0; color:#55564a; font-size:13px;">
                   — Opção Contábil
                 </p>

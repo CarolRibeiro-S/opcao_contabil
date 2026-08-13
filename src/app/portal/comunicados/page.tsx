@@ -9,6 +9,7 @@ type Comunicado = {
   status: string
   requer_resposta: boolean
   created_at: string
+  visualizado_pelo_cliente_em: string | null
 }
 
 const tipoBadge: Record<string, string> = {
@@ -60,7 +61,7 @@ export default async function PortalComunicadosPage() {
 
   const { data: comunicados } = await supabase
     .from('comunicados')
-    .select('id, titulo, tipo, mensagem, status, requer_resposta, created_at')
+    .select('id, titulo, tipo, mensagem, status, requer_resposta, created_at, visualizado_pelo_cliente_em')
     .eq('cliente_id', cliente.id)
     .order('created_at', { ascending: false })
     .returns<Comunicado[]>()
@@ -113,6 +114,7 @@ export default async function PortalComunicadosPage() {
                   nomeCliente={cliente.nome_empresa}
                   statusComunicado={comunicado.status}
                   requerResposta={comunicado.requer_resposta}
+                  visualizadoPeloClienteEm={comunicado.visualizado_pelo_cliente_em}
                 />
               </div>
             </div>

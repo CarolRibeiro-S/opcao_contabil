@@ -131,6 +131,15 @@ function IconHistorico({ className }: IconProps) {
   )
 }
 
+export function IconOlho({ className }: IconProps) {
+  return (
+    <IconBase className={className}>
+      <path d="M1.7 10S4.5 4.2 10 4.2 18.3 10 18.3 10 15.5 15.8 10 15.8 1.7 10 1.7 10Z" />
+      <circle cx="10" cy="10" r="2.3" />
+    </IconBase>
+  )
+}
+
 export function IconChevron({ className }: IconProps) {
   return (
     <IconBase className={className}>
@@ -162,6 +171,7 @@ export const ICONES = {
   comunicados: IconComunicados,
   documentos: IconDocumentos,
   historico: IconHistorico,
+  visualizacoes: IconOlho,
 } as const
 
 export type IconKey = keyof typeof ICONES

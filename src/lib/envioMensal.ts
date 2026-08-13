@@ -13,12 +13,14 @@ export const TIPOS_PADRAO = [
   'Honorários',
   'Taxas',
   'Extrato do Simples Nacional',
+  'Documentos da Empresa',
 ]
 
 // Tipos de documento informativo, sem data de vencimento (ex: extrato do
-// Simples Nacional). Usado pra Etapa 2 não exigir vencimento e pra Etapa 3
-// não listar "TIPO - VENCIMENTO" no e-mail pra esses arquivos.
-export const TIPOS_SEM_VENCIMENTO = ['Extrato do Simples Nacional']
+// Simples Nacional, balanço, alteração contratual). Usado pra Etapa 2 não
+// exigir vencimento e pra Etapa 3 não listar "TIPO - VENCIMENTO" no e-mail
+// pra esses arquivos.
+export const TIPOS_SEM_VENCIMENTO = ['Extrato do Simples Nacional', 'Documentos da Empresa']
 
 // "PARCELA" (cobre "PARCELA" e "PARCELAMENTO" como substring) fica de fora
 // dessa lista e é checada à parte, com prioridade máxima, em detectarTipo —
@@ -47,6 +49,11 @@ const PALAVRAS_CHAVE_TIPO: { palavra: string; tipo: string }[] = [
   { palavra: 'GDF', tipo: TIPO_PARCELAMENTO },
   { palavra: 'RECEITA', tipo: TIPO_PARCELAMENTO },
   { palavra: 'EXTRATO', tipo: 'Extrato do Simples Nacional' },
+  { palavra: 'BALANCO', tipo: 'Documentos da Empresa' },
+  { palavra: 'ALTERACAO', tipo: 'Documentos da Empresa' },
+  { palavra: 'CNPJ', tipo: 'Documentos da Empresa' },
+  { palavra: 'CFDF', tipo: 'Documentos da Empresa' },
+  { palavra: 'DRE', tipo: 'Documentos da Empresa' },
 ]
 
 export function normalizarTexto(texto: string) {

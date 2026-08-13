@@ -9,6 +9,7 @@ const navLinks: SidebarLink[] = [
   { href: '/portal/prazos', label: 'Prazos', icon: 'prazos' },
   { href: '/portal/comunicados', label: 'Comunicados', icon: 'comunicados' },
   { href: '/portal/documentos', label: 'Documentos', icon: 'documentos' },
+  { href: '/portal/solicitacao-mensal', label: 'Solicitação Mensal', icon: 'envioMensal' },
   { href: '/portal/cobrancas', label: 'Honorários Contábeis', icon: 'honorarios' },
 ]
 
