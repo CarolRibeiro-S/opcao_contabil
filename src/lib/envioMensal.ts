@@ -137,8 +137,16 @@ export type ProfissionalOption = {
   nome: string
 }
 
+// Título/prefixo comum na frente do nome cadastrado do profissional (ex:
+// "Dr. Newton Braga") que normalmente não aparece no nome do arquivo —
+// removido antes de comparar. Case insensitive, com ou sem ponto.
+const REGEX_TITULO_PROFISSIONAL = /^(dr|dra|sr|sra)\.?\s+/i
+
 // Quarta tentativa: pra clínicas, o nome do médico/profissional às vezes
-// aparece no nome do arquivo em vez do nome da clínica.
+// aparece no nome do arquivo em vez do nome da clínica. Mesma ideia de
+// detectarClientePorNomeEmpresa — quebra em palavras e compara cada uma —
+// porque o arquivo costuma trazer só um pedaço do nome (ex: só o
+// sobrenome), não o nome completo cadastrado com título.
 export function detectarClientePorProfissional(
   nomeArquivo: string,
   profissionais: ProfissionalOption[]
@@ -146,8 +154,14 @@ export function detectarClientePorProfissional(
   const normalizado = normalizarTexto(nomeArquivo)
 
   for (const profissional of profissionais) {
-    const nomeNormalizado = normalizarTexto(profissional.nome)
-    if (nomeNormalizado && normalizado.includes(nomeNormalizado)) {
+    const nomeSemTitulo = profissional.nome.replace(REGEX_TITULO_PROFISSIONAL, '')
+
+    const palavras = nomeSemTitulo
+      .split(/\s+/)
+      .map((palavra) => normalizarTexto(palavra))
+      .filter((palavra) => palavra.length >= 3)
+
+    if (palavras.some((palavra) => normalizado.includes(palavra))) {
       return profissional.clienteId
     }
   }

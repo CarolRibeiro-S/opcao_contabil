@@ -10,6 +10,7 @@ import AnexosInput from '@/components/admin/AnexosInput'
 import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 import CampoDocumento from '@/components/shared/CampoDocumento'
 import CampoTelefone from '@/components/shared/CampoTelefone'
+import { sanitizarNomeArquivo } from '@/lib/storage/sanitizarNomeArquivo'
 
 const inputClasses =
   'w-full border-0 border-b-[1.4px] border-rule bg-transparent px-0.5 py-2.5 font-body text-[15px] text-charcoal outline-none transition-colors duration-200 focus:border-lime'
@@ -101,7 +102,7 @@ export default function NovoClientePage() {
       // enviado mais de uma vez pro mesmo cliente, ex: reenviar uma versão
       // atualizada de um documento — mesmo padrão já usado no
       // ThreadComunicado e nos outros pontos de upload de documentos.
-      const caminhoArquivo = `${cliente.id}/${Date.now()}-${index}-${arquivo.name}`
+      const caminhoArquivo = `${cliente.id}/${Date.now()}-${index}-${sanitizarNomeArquivo(arquivo.name)}`
 
       const { error: uploadError } = await supabase.storage
         .from('documentos-clientes')

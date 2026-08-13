@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
+import { sanitizarNomeArquivo } from '@/lib/storage/sanitizarNomeArquivo'
 
 // Mesmo padrão de lotes já usado no Envio Mensal (EnvioMensalConfirmacao.tsx):
 // o front divide os clientes selecionados em lotes pequenos e chama a rota
@@ -122,7 +123,7 @@ export default function NovoComunicadoMassaPage() {
 
       await Promise.all(
         clienteIds.map(async (clienteId) => {
-          const caminhoArquivo = `${clienteId}/${Date.now()}-${arquivo.name}`
+          const caminhoArquivo = `${clienteId}/${Date.now()}-${sanitizarNomeArquivo(arquivo.name)}`
 
           const { error: uploadError } = await supabase.storage
             .from('documentos-clientes')

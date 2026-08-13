@@ -166,6 +166,7 @@ export default function EnvioMensalPage() {
       {etapa === 2 && (
         <EnvioMensalArquivos
           clientes={clientes}
+          profissionais={profissionais}
           tiposDisponiveis={TIPOS_PADRAO}
           arquivosIniciais={arquivosRevisados}
           onVoltar={() => setEtapa(1)}

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import SelectCliente from '@/components/admin/SelectCliente'
 import CampoMoeda from '@/components/shared/CampoMoeda'
 import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
+import { sanitizarNomeArquivo } from '@/lib/storage/sanitizarNomeArquivo'
 
 function formatarCompetenciaCurta(competencia: string) {
   const [ano, mes] = competencia.split('-')
@@ -96,7 +97,7 @@ export default function EditarCobrancaForm({ cobranca }: { cobranca: Cobranca })
     let boletoNome = formaPagamento === 'boleto' ? cobranca.boleto_nome_arquivo : null
 
     if (formaPagamento === 'boleto' && arquivoBoleto) {
-      const caminho = `${clienteId}/${Date.now()}-${arquivoBoleto.name}`
+      const caminho = `${clienteId}/${Date.now()}-${sanitizarNomeArquivo(arquivoBoleto.name)}`
 
       const { error: uploadError } = await supabase.storage
         .from('documentos-clientes')

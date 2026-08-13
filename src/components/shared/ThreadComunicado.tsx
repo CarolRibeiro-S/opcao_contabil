@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
+import { sanitizarNomeArquivo } from '@/lib/storage/sanitizarNomeArquivo'
 
 type Mensagem = {
   id: string
@@ -296,7 +297,7 @@ export default function ThreadComunicado({
         // Prefixo com timestamp evita colisão de nome no Storage — antes,
         // dois arquivos com o mesmo nome (inclusive em mensagens diferentes)
         // podiam se sobrescrever ou dar erro de "recurso já existe".
-        const caminhoArquivo = `${clienteId}/${Date.now()}-${i}-${arquivoAtual.name}`
+        const caminhoArquivo = `${clienteId}/${Date.now()}-${i}-${sanitizarNomeArquivo(arquivoAtual.name)}`
 
         const { error: uploadError } = await supabase.storage
           .from('documentos-clientes')

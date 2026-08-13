@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { emailImpostosMensal } from '@/lib/email/templates'
 import { TIPOS_SEM_VENCIMENTO } from '@/lib/envioMensal'
+import { sanitizarNomeArquivo } from '@/lib/storage/sanitizarNomeArquivo'
 
 export const dynamic = 'force-dynamic'
 
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
         continue
       }
 
-      const caminhoArquivo = `${grupo.clienteId}/${arquivoInfo.nomeArquivo}`
+      const caminhoArquivo = `${grupo.clienteId}/${sanitizarNomeArquivo(arquivoInfo.nomeArquivo)}`
       const arrayBuffer = await arquivo.arrayBuffer()
       const buffer = Buffer.from(arrayBuffer)
 

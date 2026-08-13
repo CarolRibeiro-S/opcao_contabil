@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 import ThreadComunicado from '@/components/shared/ThreadComunicado'
+import { sanitizarNomeArquivo } from '@/lib/storage/sanitizarNomeArquivo'
 
 type Comunicado = {
   id: string
@@ -161,7 +162,7 @@ export default function ComunicadosCliente({
       // já que documento_id é 1:1 com mensagem), em vez de sobrescrever a
       // mensagem de texto que acabou de ser criada.
       if (arquivo) {
-        const caminhoArquivo = `${clienteId}/${Date.now()}-${arquivo.name}`
+        const caminhoArquivo = `${clienteId}/${Date.now()}-${sanitizarNomeArquivo(arquivo.name)}`
 
         const { error: uploadError } = await supabase.storage
           .from('documentos-clientes')
