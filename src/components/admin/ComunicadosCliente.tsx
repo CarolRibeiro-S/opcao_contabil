@@ -22,7 +22,7 @@ const tipoLabel: Record<string, string> = {
 
 const tipoBadge: Record<string, string> = {
   aviso: 'bg-blue-50 text-blue-700 border border-blue-200',
-  solicitacao_documento: 'bg-lime/15 text-[#4f8f2a] border border-lime/40',
+  solicitacao_documento: 'bg-lime/15 text-success border border-lime/40',
 }
 
 const statusLabel: Record<string, string> = {
@@ -34,7 +34,7 @@ const statusLabel: Record<string, string> = {
 const statusBadge: Record<string, string> = {
   pendente: 'bg-amber-50 text-amber-700 border border-amber-200',
   respondido: 'bg-blue-50 text-blue-700 border border-blue-200',
-  concluido: 'bg-[#eef7e0] text-[#4f8f2a] border border-[#c8e2a1]',
+  concluido: 'bg-success-bg text-success border border-success-border',
 }
 
 const inputClasses =

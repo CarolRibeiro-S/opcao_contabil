@@ -232,14 +232,21 @@ export default async function DashboardPage() {
       <h1 className="font-display text-2xl font-semibold text-navy">Dashboard</h1>
       <p className="mb-8 mt-1 text-sm text-navy-soft">{dataExtenso}</p>
 
-      {/* mt-[41px] alinha o topo desta grade com o início da área azul de
-          navegação da sidebar. O padding-top do <main> subiu 32px (de 32
-          pra 64px), então este margin caiu os mesmos 32px (de 73 pra 41)
-          pra manter o total (main pt + este mt) em 105px, igual a antes —
-          os cards não se mexem, só o título desceu. Domina o mb-8 da data
-          por colapso de margem entre irmãos.
-          Linha 1 — saúde geral do negócio: clientes, financeiro e adimplência lado a lado. */}
-      <div className="mt-[41px] mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Comunicados (Avisos e Solicitação de Documento) no topo, antes de
+          qualquer outro card — pedido explícito, sem mt-[41px] aqui (esse
+          ajuste de alinhamento com a sidebar pertence à primeira grade
+          visual da página, que agora é esta). */}
+      <div className="mt-[41px] mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <CardComunicados titulo="Avisos - Enviado a Clientes" icone="comunicados" comunicados={comunicadosAviso} />
+        <CardComunicados
+          titulo="Solicitação de Documento - Solicitado para Clientes"
+          icone="documentos"
+          comunicados={comunicadosSolicitacao}
+        />
+      </div>
+
+      {/* Linha 1 — saúde geral do negócio: clientes, financeiro e adimplência lado a lado. */}
+      <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <div className={cardClasses}>
           <div className="flex items-start justify-between">
             <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
@@ -274,7 +281,7 @@ export default async function DashboardPage() {
             </p>
             <CardIconBadge
               chave="financeiro"
-              className={resultadoDoMesPositivo ? 'bg-lime/10 text-[#4f8f2a]' : 'bg-red-50 text-red-600'}
+              className={resultadoDoMesPositivo ? 'bg-lime/10 text-success' : 'bg-red-50 text-red-600'}
             />
           </div>
 
@@ -291,7 +298,7 @@ export default async function DashboardPage() {
 
           <p
             className={`mt-4 font-display text-2xl font-semibold ${
-              resultadoDoMesPositivo ? 'text-[#4f8f2a]' : 'text-red-600'
+              resultadoDoMesPositivo ? 'text-success' : 'text-red-600'
             }`}
           >
             {formatarValor(resultadoDoMes)}
@@ -310,7 +317,7 @@ export default async function DashboardPage() {
             <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
               Adimplência do Mês
             </p>
-            <CardIconBadge chave="honorarios" className="bg-lime/10 text-[#4f8f2a]" />
+            <CardIconBadge chave="honorarios" className="bg-lime/10 text-success" />
           </div>
 
           <div className="mt-4 flex items-center gap-4">
@@ -320,7 +327,7 @@ export default async function DashboardPage() {
                 cy="32"
                 r={raioDonut}
                 fill="none"
-                stroke={totalGeralCobrancas > 0 ? '#f59e0b' : 'var(--rule)'}
+                stroke={totalGeralCobrancas > 0 ? 'var(--warning)' : 'var(--rule)'}
                 strokeWidth="8"
               />
               {totalGeralCobrancas > 0 && (
@@ -329,7 +336,7 @@ export default async function DashboardPage() {
                   cy="32"
                   r={raioDonut}
                   fill="none"
-                  stroke="#8dc63f"
+                  stroke="var(--lime)"
                   strokeWidth="8"
                   strokeLinecap="round"
                   strokeDasharray={`${arcoAdimplente} ${circunferenciaDonut - arcoAdimplente}`}
@@ -486,18 +493,6 @@ export default async function DashboardPage() {
             </Link>
           </div>
         </div>
-      </div>
-
-      {/* Linha 3 — Comunicados dos últimos 30 dias, separados por tipo e por
-          status (Pendente / Em Andamento / Concluído), com busca por cliente
-          e por data dentro de cada card. */}
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <CardComunicados titulo="Avisos - Enviado a Clientes" icone="comunicados" comunicados={comunicadosAviso} />
-        <CardComunicados
-          titulo="Solicitação de Documento - Solicitado para Clientes"
-          icone="documentos"
-          comunicados={comunicadosSolicitacao}
-        />
       </div>
     </div>
   )

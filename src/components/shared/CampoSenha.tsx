@@ -56,7 +56,7 @@ export default function CampoSenha({ className, ...props }: CampoSenhaProps) {
         type="button"
         onClick={() => setVisivel((atual) => !atual)}
         aria-label={visivel ? 'Ocultar senha' : 'Mostrar senha'}
-        className="absolute right-2.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center text-[#8f9ac0] transition-colors duration-200 hover:text-[#223468]"
+        className="absolute right-2.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center text-navy-soft/60 transition-colors duration-200 hover:text-navy-soft"
       >
         {visivel ? <IconOlhoFechado className="h-5 w-5" /> : <IconOlhoAberto className="h-5 w-5" />}
       </button>

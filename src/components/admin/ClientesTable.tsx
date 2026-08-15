@@ -19,7 +19,7 @@ type Cliente = {
 
 const tipoBadge: Record<string, string> = {
   pessoa_juridica: 'bg-blue-50 text-blue-700 border border-blue-200',
-  mei: 'bg-lime/15 text-[#4f8f2a] border border-lime/40',
+  mei: 'bg-lime/15 text-success border border-lime/40',
 }
 
 const tipoLabel: Record<string, string> = {
@@ -31,10 +31,11 @@ const regimeLabel: Record<string, string> = {
   simples_nacional: 'Simples Nacional',
   lucro_presumido: 'Lucro Presumido',
   lucro_real: 'Lucro Real',
+  sociedade_sem_fins_lucrativos: 'Sociedade sem fins lucrativos',
 }
 
 const statusBadge: Record<string, string> = {
-  ativo: 'bg-[#eef7e0] text-[#4f8f2a] border border-[#c8e2a1]',
+  ativo: 'bg-success-bg text-success border border-success-border',
   inativo: 'bg-paper-dim text-navy-soft border border-rule',
 }
 
@@ -108,7 +109,7 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
                       <span
                         title={cliente.profile_id ? 'Acesso ao portal ativo' : 'Ainda não convidado pro portal'}
                         className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                          cliente.profile_id ? 'bg-[#4f8f2a]' : 'bg-navy-soft/30'
+                          cliente.profile_id ? 'bg-success' : 'bg-navy-soft/30'
                         }`}
                       />
                       {cliente.nome_empresa}

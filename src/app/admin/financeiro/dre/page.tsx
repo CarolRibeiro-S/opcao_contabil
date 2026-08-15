@@ -312,7 +312,7 @@ export default async function DrePage({
         <div className={cardClasses}>
           <div className="flex items-start justify-between">
             <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">Receita Bruta</p>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-lime/10 text-[#4f8f2a]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-lime/10 text-success">
               <IconeCard chave="honorarios" className="h-5 w-5" />
             </div>
           </div>
@@ -338,7 +338,7 @@ export default async function DrePage({
             </p>
             <div
               className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                resultadoPositivo ? 'bg-lime/10 text-[#4f8f2a]' : 'bg-red-50 text-red-600'
+                resultadoPositivo ? 'bg-lime/10 text-success' : 'bg-red-50 text-red-600'
               }`}
             >
               <IconeCard chave="dashboard" className="h-5 w-5" />
@@ -346,7 +346,7 @@ export default async function DrePage({
           </div>
           <p
             className={`mt-3 font-display text-2xl font-semibold ${
-              resultadoPositivo ? 'text-[#4f8f2a]' : 'text-red-600'
+              resultadoPositivo ? 'text-success' : 'text-red-600'
             }`}
           >
             {formatarValor(resultadoMes)}
@@ -422,12 +422,12 @@ export default async function DrePage({
 
       <div
         className={`mb-8 flex items-center justify-between rounded-lg px-5 py-4 shadow-sm ${
-          resultadoPositivo ? 'bg-[#eef7e0]' : 'bg-red-50'
+          resultadoPositivo ? 'bg-success-bg' : 'bg-red-50'
         }`}
       >
         <span className="font-display text-base font-semibold text-navy">Resultado do Mês</span>
         <span
-          className={`font-display text-xl font-bold ${resultadoPositivo ? 'text-[#4f8f2a]' : 'text-red-600'}`}
+          className={`font-display text-xl font-bold ${resultadoPositivo ? 'text-success' : 'text-red-600'}`}
         >
           {formatarValor(resultadoMes)}
         </span>
@@ -464,7 +464,7 @@ export default async function DrePage({
                     width={larguraBarra}
                     height={alturaReceita}
                     rx="2"
-                    fill="#8dc63f"
+                    fill="var(--lime)"
                   />
                   <rect
                     x={xDespesa}
@@ -472,7 +472,7 @@ export default async function DrePage({
                     width={larguraBarra}
                     height={alturaDespesa}
                     rx="2"
-                    fill="#f59e0b"
+                    fill="var(--warning)"
                   />
                   <text
                     x={xGrupo + larguraGrupo / 2}

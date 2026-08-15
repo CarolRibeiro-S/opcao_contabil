@@ -95,24 +95,24 @@ export default function DefinirSenhaPage() {
 
   if (verificandoSessao) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7f8f5] px-4">
-        <p className="text-sm text-[#223468]">Verificando link...</p>
+      <div className="flex min-h-screen items-center justify-center bg-paper px-4">
+        <p className="text-sm text-navy-soft">Verificando link...</p>
       </div>
     )
   }
 
   if (!sessaoValida) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7f8f5] px-4">
-        <div className="w-full max-w-md rounded-2xl border border-[#d8ddd0] bg-white p-8 text-center shadow-sm">
-          <h1 className="mb-3 text-2xl font-bold text-[#16234a]">Link inválido ou expirado</h1>
-          <p className="mb-6 text-sm text-[#223468]">
+      <div className="flex min-h-screen items-center justify-center bg-paper px-4">
+        <div className="w-full max-w-md rounded-2xl border border-rule bg-white p-8 text-center shadow-sm">
+          <h1 className="mb-3 text-2xl font-bold text-navy">Link inválido ou expirado</h1>
+          <p className="mb-6 text-sm text-navy-soft">
             Esse link de convite ou redefinição de senha não é mais válido. Peça um novo convite ao
             administrador, ou solicite a redefinição de senha novamente.
           </p>
           <Link
             href="/login"
-            className="inline-block rounded-lg bg-[#8dc63f] px-5 py-2 font-semibold text-white transition hover:brightness-95"
+            className="inline-block rounded-lg bg-lime px-5 py-2 font-semibold text-white transition hover:brightness-95"
           >
             Voltar para o login
           </Link>
@@ -122,23 +122,23 @@ export default function DefinirSenhaPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f7f8f5] px-4">
-      <div className="w-full max-w-md rounded-2xl border border-[#d8ddd0] bg-white p-8 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-paper px-4">
+      <div className="w-full max-w-md rounded-2xl border border-rule bg-white p-8 shadow-sm">
         <div className="mb-4 flex justify-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#c8e2a1] bg-[#eef7e0] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#4f8f2a]">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-success-border bg-success-bg px-3 py-1 text-xs font-semibold uppercase tracking-wide text-success">
             <IconEstrela className="h-3.5 w-3.5" />
             Convite de Equipe
           </span>
         </div>
 
-        <h1 className="mb-2 text-center text-2xl font-bold text-[#16234a]">Crie seu acesso</h1>
-        <p className="mb-6 text-center text-sm text-[#223468]">
+        <h1 className="mb-2 text-center text-2xl font-bold text-navy">Crie seu acesso</h1>
+        <p className="mb-6 text-center text-sm text-navy-soft">
           Defina sua senha para acessar o Painel Administrativo da Opção Contábil
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="senha" className="mb-1 block text-sm font-medium text-[#223468]">
+            <label htmlFor="senha" className="mb-1 block text-sm font-medium text-navy-soft">
               Nova senha
             </label>
             <CampoSenha
@@ -147,12 +147,12 @@ export default function DefinirSenhaPage() {
               onChange={(e) => setSenha(e.target.value)}
               required
               minLength={6}
-              className="w-full rounded-lg border border-[#d8ddd0] px-3 py-2 text-[#16234a] outline-none focus:border-[#8dc63f] focus:ring-2 focus:ring-[#8dc63f]"
+              className="w-full rounded-lg border border-rule px-3 py-2 text-navy outline-none focus:border-lime focus:ring-2 focus:ring-lime"
             />
           </div>
 
           <div>
-            <label htmlFor="confirmarSenha" className="mb-1 block text-sm font-medium text-[#223468]">
+            <label htmlFor="confirmarSenha" className="mb-1 block text-sm font-medium text-navy-soft">
               Confirmar senha
             </label>
             <CampoSenha
@@ -161,7 +161,7 @@ export default function DefinirSenhaPage() {
               onChange={(e) => setConfirmarSenha(e.target.value)}
               required
               minLength={6}
-              className="w-full rounded-lg border border-[#d8ddd0] px-3 py-2 text-[#16234a] outline-none focus:border-[#8dc63f] focus:ring-2 focus:ring-[#8dc63f]"
+              className="w-full rounded-lg border border-rule px-3 py-2 text-navy outline-none focus:border-lime focus:ring-2 focus:ring-lime"
             />
           </div>
 
@@ -170,7 +170,7 @@ export default function DefinirSenhaPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-[#8dc63f] py-2 font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+            className="w-full rounded-lg bg-lime py-2 font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
           >
             {loading ? 'Salvando...' : 'Definir senha e entrar'}
           </button>

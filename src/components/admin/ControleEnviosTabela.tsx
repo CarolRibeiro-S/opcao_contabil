@@ -20,7 +20,7 @@ const categoriaLabel: Record<ItemEnvio['categoria'], string> = {
 
 const categoriaBadge: Record<ItemEnvio['categoria'], string> = {
   comunicado: 'bg-blue-50 text-blue-700 border border-blue-200',
-  documento: 'bg-lime/15 text-[#4f8f2a] border border-lime/40',
+  documento: 'bg-lime/15 text-success border border-lime/40',
   solicitacao_mensal: 'border border-rule bg-paper-dim text-navy-soft',
 }
 
@@ -124,7 +124,7 @@ export default function ControleEnviosTabela({ itens }: { itens: ItemEnvio[] }) 
                     <td className="px-4 py-3 text-charcoal">{formatarDataHora(item.dataEnvio)}</td>
                     <td className="px-4 py-3">
                       {item.visualizadoEm ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#c8e2a1] bg-[#eef7e0] px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-[#4f8f2a]">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-success-border bg-success-bg px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-success">
                           Visto em {formatarDataHora(item.visualizadoEm)}
                         </span>
                       ) : (

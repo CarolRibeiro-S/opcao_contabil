@@ -28,7 +28,7 @@ export default function Contato() {
               <h4 className="font-display text-base font-semibold text-navy">E-mail</h4>
               <a
                 href="mailto:opcaocontabilbsb@gmail.com"
-                className="mt-[3px] block text-sm text-[#55564a] hover:text-navy"
+                className="mt-[3px] block text-sm text-charcoal-soft hover:text-navy"
               >
                 opcaocontabilbsb@gmail.com
               </a>
@@ -44,7 +44,7 @@ export default function Contato() {
                 href="https://wa.me/5561946699671"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-[3px] block text-sm text-[#55564a] hover:text-navy"
+                className="mt-[3px] block text-sm text-charcoal-soft hover:text-navy"
               >
                 (61) 9466-9671
               </a>
@@ -58,7 +58,7 @@ export default function Contato() {
               <h4 className="font-display text-base font-semibold text-navy">Telefone</h4>
               <a
                 href="tel:+556130346911"
-                className="mt-[3px] block text-sm text-[#55564a] hover:text-navy"
+                className="mt-[3px] block text-sm text-charcoal-soft hover:text-navy"
               >
                 (61) 3034-6911
               </a>
@@ -74,7 +74,7 @@ export default function Contato() {
                 href="https://maps.app.goo.gl/QAqLwPFCToyvXXaP8"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-[3px] block text-sm text-[#55564a] hover:text-navy"
+                className="mt-[3px] block text-sm text-charcoal-soft hover:text-navy"
               >
                 Q 2 Quadra 02 Conjunto A, Lote 3/5, Sala 111
                 <br />
@@ -92,7 +92,7 @@ export default function Contato() {
                 href="https://www.instagram.com/opcaocontabildf/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-[3px] block text-sm text-[#55564a] hover:text-navy"
+                className="mt-[3px] block text-sm text-charcoal-soft hover:text-navy"
               >
                 @opcaocontabildf
               </a>

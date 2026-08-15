@@ -5,6 +5,7 @@ import Image, { type StaticImageData } from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import LogoutButton from './LogoutButton'
+import ThemeToggle from './ThemeToggle'
 import { ICONES, IconChevron, type IconKey } from './icons'
 
 export type SidebarLink = {
@@ -128,7 +129,8 @@ export default function Sidebar({
     <aside className="hidden w-[260px] shrink-0 flex-col bg-navy md:flex">
       {/* Altura sempre automática (sem h-* fixo) — cresce com o texto do
           título em vez de cortar ou vazar sobre a nav/conteúdo abaixo. */}
-      <div className="flex min-w-0 flex-col items-center gap-2 border-b border-rule bg-paper px-6 pt-7 pb-6 text-center">
+      <div className="relative flex min-w-0 flex-col items-center gap-2 border-b border-rule bg-paper px-6 pt-7 pb-6 text-center">
+        <ThemeToggle className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-lg text-navy-soft transition-colors duration-200 hover:bg-paper-dim hover:text-navy" />
         <Image src={logoSrc} alt="Opção Contábil" priority className="h-20 w-auto shrink-0" />
         <div className="min-w-0 w-full">
           <p

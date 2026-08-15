@@ -233,7 +233,7 @@ export default async function FinanceiroDashboardPage() {
                     width={larguraBarra}
                     height={Math.max(alturaBarra, 1)}
                     rx="2"
-                    fill={positivo ? '#8dc63f' : '#ef4444'}
+                    fill={positivo ? 'var(--lime)' : 'var(--chart-red)'}
                   />
                   <text
                     x={xGrupo + larguraGrupo / 2}
@@ -260,7 +260,7 @@ export default async function FinanceiroDashboardPage() {
 
           <p className="mt-2 border-t border-rule pt-3 text-sm">
             <span className="text-navy-soft">Média dos últimos 6 meses: </span>
-            <span className={`font-semibold ${mediaPositiva ? 'text-[#4f8f2a]' : 'text-red-600'}`}>
+            <span className={`font-semibold ${mediaPositiva ? 'text-success' : 'text-red-600'}`}>
               {formatarValor(mediaBalancete)}
             </span>
           </p>

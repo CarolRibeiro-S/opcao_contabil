@@ -4,6 +4,54 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { emailAlertaPrazo, emailAlertaPrazoAntecipado, emailAlertaTarefa, emailResumoDiarioAdmin } from '@/lib/email/templates'
 
 export const dynamic = 'force-dynamic'
+// Bump de segurança pro maxDuration padrão da Vercel: a verificação extra
+// de entrega (envioRealmenteTeveSucesso) adiciona ~1.5s de espera por
+// e-mail antes de confirmar no banco — em dias com muitos alertas, isso
+// pode se acumular. Ajuste conforme o plano da Vercel em uso.
+export const maxDuration = 60
+
+// A resposta síncrona de resend.emails.send() só confirma que a Resend
+// ACEITOU o e-mail na fila — o tipo de retorno de sucesso só tem um campo,
+// { id }. Não existe status de entrega nessa resposta. Falhas que só
+// acontecem no despacho em si (ex: cota diária excedida) nunca aparecem no
+// "error" do send() — só depois, consultando o e-mail pelo id (campo
+// last_event). É exatamente esse buraco que causou o bug: um envio que a
+// Resend aceitou mas não conseguiu despachar (cota) foi tratado como
+// sucesso porque só checávamos o "error" do send().
+//
+// Por isso, além do erro síncrono (que continua sendo checado antes desta
+// função ser chamada), esperamos um instante e conferimos o last_event via
+// GET /emails/{id} antes de gravar qualquer coisa no banco. 'failed',
+// 'bounced', 'canceled', 'complained' e 'suppressed' são os estados que a
+// própria Resend documenta como terminais de falha — qualquer um desses
+// bloqueia a gravação. Os demais (queued/scheduled/sent/delivered/
+// opened/clicked/delivery_delayed) são tratados como "o envio está de pé",
+// mesmo comportamento de antes.
+const EVENTOS_FALHA_ENTREGA = new Set(['failed', 'bounced', 'canceled', 'complained', 'suppressed'])
+
+async function envioRealmenteTeveSucesso(resend: Resend, emailId: string | undefined): Promise<boolean> {
+  if (!emailId) return false
+
+  await new Promise((resolve) => setTimeout(resolve, 1500))
+
+  const { data, error } = await resend.emails.get(emailId)
+
+  if (error || !data) {
+    // Não deu pra confirmar o status (ex: instabilidade da própria API de
+    // consulta) — cai de volta pro comportamento anterior (assume sucesso)
+    // em vez de travar o cron por causa da checagem em si, mas fica
+    // registrado no log pra investigar se acontecer com frequência.
+    console.error(`[cron/prazos] Não foi possível confirmar status de entrega do e-mail ${emailId}:`, error)
+    return true
+  }
+
+  if (EVENTOS_FALHA_ENTREGA.has(data.last_event)) {
+    console.error(`[cron/prazos] E-mail ${emailId} foi aceito mas falhou no despacho (last_event=${data.last_event})`)
+    return false
+  }
+
+  return true
+}
 
 type Prazo = {
   id: string
@@ -106,7 +154,7 @@ export async function GET(request: Request) {
           diasRestantes,
         })
 
-        const { error: emailError } = await resend.emails.send({
+        const { data: emailData, error: emailError } = await resend.emails.send({
           from: 'naoresponda@opcaocontabilbsb.com.br',
           to: email,
           cc: process.env.ADMIN_ALERT_EMAIL,
@@ -114,7 +162,7 @@ export async function GET(request: Request) {
           html,
         })
 
-        if (!emailError) {
+        if (!emailError && (await envioRealmenteTeveSucesso(resend, emailData?.id))) {
           await supabase
             .from('prazos')
             .update({ notificado_10_em: new Date().toISOString() })
@@ -141,7 +189,7 @@ export async function GET(request: Request) {
         diasRestantes,
       })
 
-      const { error: emailError } = await resend.emails.send({
+      const { data: emailData, error: emailError } = await resend.emails.send({
         from: 'naoresponda@opcaocontabilbsb.com.br',
         to: email,
         cc: process.env.ADMIN_ALERT_EMAIL,
@@ -150,6 +198,7 @@ export async function GET(request: Request) {
       })
 
       if (emailError) continue
+      if (!(await envioRealmenteTeveSucesso(resend, emailData?.id))) continue
 
       await supabase
         .from('prazos')
@@ -188,7 +237,7 @@ export async function GET(request: Request) {
         diasRestantes,
       })
 
-      const { error: emailError } = await resend.emails.send({
+      const { data: emailData, error: emailError } = await resend.emails.send({
         from: 'naoresponda@opcaocontabilbsb.com.br',
         to: process.env.ADMIN_ALERT_EMAIL!,
         subject,
@@ -196,6 +245,7 @@ export async function GET(request: Request) {
       })
 
       if (emailError) continue
+      if (!(await envioRealmenteTeveSucesso(resend, emailData?.id))) continue
 
       await supabase
         .from('tarefas')

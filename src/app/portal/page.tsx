@@ -214,7 +214,7 @@ export default async function PortalDashboard() {
               chave="honorarios"
               className={
                 !proximaCobranca
-                  ? 'bg-lime/10 text-[#4f8f2a]'
+                  ? 'bg-lime/10 text-success'
                   : cobrancaAtrasada
                     ? 'bg-red-50 text-red-600'
                     : 'bg-amber-50 text-amber-600'

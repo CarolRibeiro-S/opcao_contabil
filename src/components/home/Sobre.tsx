@@ -22,7 +22,7 @@ export default function Sobre() {
           <h2 className="mt-2 font-display text-[clamp(26px,3vw,34px)] font-semibold text-navy">
             Contabilidade de perto, sem planilha perdida
           </h2>
-          <div className="mt-[18px] flex max-w-[540px] flex-col gap-4 text-base text-[#4a4a3f]">
+          <div className="mt-[18px] flex max-w-[540px] flex-col gap-4 text-base text-charcoal-soft">
             <p>
               A Opção Contábil nasceu em 2006, de uma decisão simples: fazer contabilidade de
               verdade, de perto, sem deixar nenhum cliente na mão.

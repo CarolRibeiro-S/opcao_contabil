@@ -19,7 +19,7 @@ const ACAO_INFO: Record<
   criou: {
     texto: 'criou',
     badgeLabel: 'Criou',
-    badgeClasses: 'border border-[#c8e2a1] bg-[#eef7e0] text-[#4f8f2a]',
+    badgeClasses: 'border border-success-border bg-success-bg text-success',
     dotClasses: 'bg-lime',
   },
   editou: {
@@ -31,7 +31,7 @@ const ACAO_INFO: Record<
   ativou: {
     texto: 'ativou',
     badgeLabel: 'Ativou',
-    badgeClasses: 'border border-[#c8e2a1] bg-[#eef7e0] text-[#4f8f2a]',
+    badgeClasses: 'border border-success-border bg-success-bg text-success',
     dotClasses: 'bg-lime',
   },
   inativou: {

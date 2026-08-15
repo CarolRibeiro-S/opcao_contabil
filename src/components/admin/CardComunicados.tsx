@@ -22,7 +22,7 @@ const COLUNAS: { status: string; label: string }[] = [
 const corColuna: Record<string, string> = {
   pendente: 'border-amber-200 bg-amber-50 text-amber-700',
   respondido: 'border-blue-200 bg-blue-50 text-blue-700',
-  concluido: 'border-[#c8e2a1] bg-[#eef7e0] text-[#4f8f2a]',
+  concluido: 'border-success-border bg-success-bg text-success',
 }
 
 const cardClasses = 'rounded-lg border border-rule bg-white p-6 shadow-sm transition-shadow duration-200 hover:shadow-md'

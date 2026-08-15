@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import AcoesEquipe from '@/components/admin/AcoesEquipe'
 
 const statusBadge: Record<string, string> = {
-  ativo: 'border border-[#c8e2a1] bg-[#eef7e0] text-[#4f8f2a]',
+  ativo: 'border border-success-border bg-success-bg text-success',
   inativo: 'border border-rule bg-paper-dim text-navy-soft',
 }
 
@@ -105,7 +105,7 @@ export default async function EquipePage() {
                         <span
                           className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${
                             aceito
-                              ? 'border border-[#c8e2a1] bg-[#eef7e0] text-[#4f8f2a]'
+                              ? 'border border-success-border bg-success-bg text-success'
                               : 'border border-amber-200 bg-amber-50 text-amber-700'
                           }`}
                         >

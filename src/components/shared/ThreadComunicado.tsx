@@ -477,7 +477,7 @@ export default function ThreadComunicado({
       {autorTipo === 'admin' && (
         <div className="flex items-center justify-end">
           {status === 'concluido' ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#c8e2a1] bg-[#eef7e0] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.04em] text-[#4f8f2a]">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-success-border bg-success-bg px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.04em] text-success">
               Conversa concluída
             </span>
           ) : (
@@ -502,7 +502,7 @@ export default function ThreadComunicado({
       {autorTipo === 'cliente' && avisoInformativo && (
         <div className="flex items-center justify-end">
           {status === 'concluido' ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#c8e2a1] bg-[#eef7e0] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.04em] text-[#4f8f2a]">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-success-border bg-success-bg px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.04em] text-success">
               Conversa concluída
             </span>
           ) : (

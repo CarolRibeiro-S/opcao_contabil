@@ -20,7 +20,7 @@ type Cobranca = {
 
 const statusBadge: Record<string, string> = {
   em_aberto: 'bg-amber-50 text-amber-700 border border-amber-200',
-  pago: 'bg-[#eef7e0] text-[#4f8f2a] border border-[#c8e2a1]',
+  pago: 'bg-success-bg text-success border border-success-border',
   atrasado: 'bg-red-50 text-red-700 border border-red-200',
 }
 

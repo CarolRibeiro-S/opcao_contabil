@@ -25,6 +25,24 @@ export const metadata: Metadata = {
   description: "Contabilidade orientada a prazos, para empresas que não têm tempo a perder.",
 };
 
+// Roda antes do React hidratar, direto no <head>, pra decidir se o <html>
+// já nasce com a classe "dark" — sem isso, a página sempre renderizaria em
+// modo claro por uma fração de segundo antes do ThemeToggle "corrigir" pro
+// escuro (flash of unstyled content). Prioridade: preferência salva pelo
+// usuário (localStorage) > preferência do sistema operacional
+// (prefers-color-scheme) > claro. Precisa ser uma string inline (não um
+// arquivo .js externo), senão o navegador já pintou o primeiro frame antes
+// do script carregar.
+const SCRIPT_TEMA_INICIAL = `
+(function () {
+  try {
+    var salvo = localStorage.getItem('tema');
+    var escuro = salvo ? salvo === 'escuro' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (escuro) document.documentElement.classList.add('dark');
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,8 +52,16 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       data-scroll-behavior="smooth"
+      // suppressHydrationWarning: o script acima pode adicionar "dark" ao
+      // <html> antes do React hidratar, o que faria o React reclamar de um
+      // mismatch entre o HTML gerado no servidor (sem "dark") e o do
+      // navegador (com "dark") — comportamento esperado aqui, não um bug.
+      suppressHydrationWarning
       className={`${fraunces.variable} ${inter.variable} ${ibmPlexMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA_INICIAL }} />
+      </head>
       <body className="min-h-full flex flex-col font-body">{children}</body>
     </html>
   );

@@ -3,7 +3,11 @@
 import { useState } from 'react'
 import Image, { type StaticImageData } from 'next/image'
 import LogoutButton from '@/components/shared/LogoutButton'
+import ThemeToggle from '@/components/shared/ThemeToggle'
 import { SidebarNavItem, SidebarUsuario, type SidebarLink } from '@/components/shared/Sidebar'
+
+const iconeBotaoClasses =
+  'flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-paper transition-colors duration-200 hover:bg-white/10'
 
 export default function AdminMobileNav({
   logo,
@@ -34,14 +38,12 @@ export default function AdminMobileNav({
             {titulo}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => setAberto(true)}
-          aria-label="Abrir menu"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-paper transition-colors duration-200 hover:bg-white/10"
-        >
-          <span className="text-2xl leading-none">☰</span>
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          <ThemeToggle className={iconeBotaoClasses} />
+          <button type="button" onClick={() => setAberto(true)} aria-label="Abrir menu" className={iconeBotaoClasses}>
+            <span className="text-2xl leading-none">☰</span>
+          </button>
+        </div>
       </div>
 
       {aberto && (
@@ -50,14 +52,12 @@ export default function AdminMobileNav({
           <div className="relative ml-auto flex h-full w-[82%] max-w-[300px] flex-col bg-navy p-6 shadow-xl">
             <div className="mb-6 flex items-center justify-between">
               <Image src={logo} alt="Opção Contábil" className="h-9 w-auto" />
-              <button
-                type="button"
-                onClick={() => setAberto(false)}
-                aria-label="Fechar menu"
-                className="flex h-11 w-11 items-center justify-center rounded-md text-paper transition-colors duration-200 hover:bg-white/10"
-              >
-                <span className="text-2xl leading-none">✕</span>
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <ThemeToggle className={iconeBotaoClasses} />
+                <button type="button" onClick={() => setAberto(false)} aria-label="Fechar menu" className={iconeBotaoClasses}>
+                  <span className="text-2xl leading-none">✕</span>
+                </button>
+              </div>
             </div>
 
             <p

@@ -231,6 +231,7 @@ export default function NovoClientePage() {
               <option value="simples_nacional">Simples Nacional</option>
               <option value="lucro_presumido">Lucro Presumido</option>
               <option value="lucro_real">Lucro Real</option>
+              <option value="sociedade_sem_fins_lucrativos">Sociedade sem fins lucrativos</option>
             </select>
           </div>
         )}

@@ -25,7 +25,7 @@ export default function Diferencial() {
           <h2 className="mt-2.5 font-display text-[clamp(27px,3vw,36px)] font-semibold tracking-[-0.01em] text-navy">
             Seu prazo é nosso compromisso
           </h2>
-          <p className="mt-3.5 text-base text-[#55564a]">
+          <p className="mt-3.5 text-base text-charcoal-soft">
             Contabilidade de perto, do jeito que sua empresa merece — sem planilha perdida, sem
             prazo esquecido.
           </p>
@@ -43,7 +43,7 @@ export default function Diferencial() {
                 {item.icon}
               </div>
               <h3 className="mb-2.5 font-display text-[19px] font-semibold text-navy">{item.title}</h3>
-              <p className="text-[14.5px] text-[#55564a]">{item.desc}</p>
+              <p className="text-[14.5px] text-charcoal-soft">{item.desc}</p>
             </div>
           ))}
         </div>

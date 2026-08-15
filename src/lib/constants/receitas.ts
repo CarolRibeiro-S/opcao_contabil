@@ -1,6 +1,6 @@
 export const STATUS_RECEITA_BADGE: Record<string, string> = {
   a_receber: 'border border-amber-200 bg-amber-50 text-amber-700',
-  recebido: 'border border-[#c8e2a1] bg-[#eef7e0] text-[#4f8f2a]',
+  recebido: 'border border-success-border bg-success-bg text-success',
 }
 
 export const STATUS_RECEITA_LABEL: Record<string, string> = {

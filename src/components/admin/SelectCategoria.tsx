@@ -142,7 +142,7 @@ export default function SelectCategoria({
               type="button"
               onClick={criarCategoria}
               disabled={criando}
-              className="block w-full border-t border-rule px-3 py-2 text-left text-sm font-medium text-[#4f8f2a] transition-colors duration-200 hover:bg-lime/10 disabled:opacity-50"
+              className="block w-full border-t border-rule px-3 py-2 text-left text-sm font-medium text-success transition-colors duration-200 hover:bg-lime/10 disabled:opacity-50"
             >
               {criando ? 'Criando...' : `+ Criar categoria "${busca.trim()}"`}
             </button>

@@ -25,8 +25,8 @@ const COLUNAS = [
   {
     status: 'em_dia',
     titulo: 'Em Dia',
-    corBadge: 'bg-[#eef7e0] text-[#4f8f2a]',
-    corBorda: 'border-l-[#4f8f2a]',
+    corBadge: 'bg-success-bg text-success',
+    corBorda: 'border-l-success',
   },
   { status: 'vencido', titulo: 'Vencido', corBadge: 'bg-red-50 text-red-700', corBorda: 'border-l-red-500' },
 ] as const

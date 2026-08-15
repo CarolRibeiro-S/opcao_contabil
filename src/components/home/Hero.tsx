@@ -14,7 +14,7 @@ export default function Hero() {
             <br />
             não é mais <em className="text-lime">desculpa.</em>
           </h1>
-          <p className="mt-[22px] max-w-[480px] text-[17px] leading-[1.65] text-[#4a4a3f]">
+          <p className="mt-[22px] max-w-[480px] text-[17px] leading-[1.65] text-charcoal-soft">
             Cuidamos da escrituração, dos impostos e das obrigações acessórias da sua empresa
             com um sistema que avisa antes do vencimento — não depois da multa.
           </p>
@@ -45,7 +45,7 @@ export default function Hero() {
 
             <div>
               <span className="font-mono text-[42px] font-semibold leading-none text-lime">100%</span>
-              <p className="mt-1.5 text-sm text-[#55564a]">dos prazos acompanhados de perto</p>
+              <p className="mt-1.5 text-sm text-charcoal-soft">dos prazos acompanhados de perto</p>
             </div>
 
             <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-paper-dim">

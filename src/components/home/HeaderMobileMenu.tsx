@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
+import ThemeToggle from '@/components/shared/ThemeToggle'
+
+const iconeBotaoClasses = 'flex h-11 w-11 items-center justify-center rounded-md text-navy transition-colors duration-200 hover:bg-navy/5'
 
 const navLinks = [
   { href: '#servicos', label: 'Serviços' },
@@ -38,13 +41,9 @@ export default function HeaderMobileMenu() {
       {aberto &&
         createPortal(
           <div className="fixed inset-0 z-[100] flex flex-col overflow-y-auto bg-paper px-6 pb-6 pt-6">
-            <div className="mb-8 flex items-center justify-end">
-              <button
-                type="button"
-                onClick={() => setAberto(false)}
-                aria-label="Fechar menu"
-                className="flex h-11 w-11 items-center justify-center rounded-md text-navy transition-colors duration-200 hover:bg-navy/5"
-              >
+            <div className="mb-8 flex items-center justify-end gap-1">
+              <ThemeToggle className={iconeBotaoClasses} />
+              <button type="button" onClick={() => setAberto(false)} aria-label="Fechar menu" className={iconeBotaoClasses}>
                 <span className="text-2xl leading-none">✕</span>
               </button>
             </div>

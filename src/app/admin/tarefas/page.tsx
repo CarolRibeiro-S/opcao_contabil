@@ -13,7 +13,7 @@ type Tarefa = {
 const statusBadge: Record<string, string> = {
   a_fazer: 'bg-paper-dim text-navy-soft border border-rule',
   em_andamento: 'bg-blue-50 text-blue-700 border border-blue-200',
-  concluida: 'bg-[#eef7e0] text-[#4f8f2a] border border-[#c8e2a1]',
+  concluida: 'bg-success-bg text-success border border-success-border',
 }
 
 const statusLabel: Record<string, string> = {

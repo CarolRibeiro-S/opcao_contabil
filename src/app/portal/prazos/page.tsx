@@ -11,7 +11,7 @@ type Prazo = {
 const statusBadge: Record<string, string> = {
   pendente: 'bg-paper-dim text-navy-soft border border-rule',
   atencao: 'bg-amber-50 text-amber-700 border border-amber-200',
-  em_dia: 'bg-[#eef7e0] text-[#4f8f2a] border border-[#c8e2a1]',
+  em_dia: 'bg-success-bg text-success border border-success-border',
   vencido: 'bg-red-50 text-red-700 border border-red-200',
 }
 

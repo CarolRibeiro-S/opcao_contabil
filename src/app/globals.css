@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Dark mode via classe ".dark" no <html> (controlado por ThemeToggle.tsx +
+   script anti-flash no layout raiz), em vez do padrão do Tailwind v4 que só
+   olha prefers-color-scheme. Ver https://tailwindcss.com/docs/dark-mode. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --navy: #16234a;
   --navy-soft: #223468;
@@ -10,8 +15,96 @@
   --rule: #d8ddd0;
   --charcoal: #24261f;
 
+  /* Texto secundário do site institucional (Hero, Diferencial, Sobre,
+     Contato) — tom neutro-quente (#55564a/#4a4a3f, variação da mesma cor)
+     usado solto em vez do token; diferente de --navy-soft (que é
+     azulado), por isso ganha token próprio em vez de reaproveitar aquele. */
+  --charcoal-soft: #55564a;
+
+  /* "Sucesso" (concluído/pago/em dia/ativo) — trio de hex que já se repetia
+     solto (#4f8f2a/#eef7e0/#c8e2a1) em dezenas de badges por todo o
+     projeto; formalizado aqui como token pra poder ganhar dark mode num
+     lugar só. */
+  --success: #4f8f2a;
+  --success-bg: #eef7e0;
+  --success-border: #c8e2a1;
+
+  /* "Aviso" — o #f59e0b (== amber-500) usado solto nos gráficos do DRE e no
+     donut de adimplência do Dashboard (SVG stroke/fill não enxerga classes
+     Tailwind, só var()). */
+  --warning: #f59e0b;
+
+  /* Cores das categorias de despesa no gráfico donut do DRE
+     (src/lib/constants/despesas.ts) — precisam de token porque também são
+     usadas via SVG stroke / style inline, não como className. */
+  --chart-blue: #3b82f6;
+  --chart-purple: #a855f7;
+  --chart-gray: #6b7280;
+  --chart-navy: #16234a;
+  --chart-red: #ef4444;
+  --chart-stone: #a8a29e;
+
   --background: var(--paper);
   --foreground: var(--charcoal);
+}
+
+/* Paleta escura — mesmos nomes de variável, valores diferentes. Todo
+   componente que já usa as classes semânticas (bg-paper, text-navy,
+   border-rule, bg-success etc) ganha dark mode automaticamente, sem
+   precisar editar o componente.
+
+   Contraste (WCAG AA, fundo --paper #10141c):
+   - navy (títulos) #eef1f8: ~17.5:1
+   - navy-soft (labels) #8b93ab: ~7.3:1
+   - charcoal (corpo) #dde1ec: ~15:1
+   - success #8fd35c sobre success-bg #16301c: ~7.5:1
+   Todos folgados acima do mínimo de 4.5:1 (texto normal) e 3:1 (texto
+   grande) exigido pelo item 2 do pedido. */
+:root.dark {
+  --navy: #eef1f8;
+  --navy-soft: #8b93ab;
+  /* --lime / --lime-bright ficam com o MESMO valor nos dois temas — já são
+     vibrantes o bastante pra contrastar bem em fundo escuro (~10:1 contra
+     --paper escuro), então não precisam de ajuste. */
+  --paper: #10141c;
+  --paper-dim: #0a0d13;
+  --rule: #2a3244;
+  --charcoal: #dde1ec;
+  --charcoal-soft: #a3a394;
+
+  --success: #8fd35c;
+  --success-bg: #16301c;
+  --success-border: #2f5d34;
+
+  /* --warning fica igual — #f59e0b já rende ~11:1 sobre o novo --paper. */
+
+  --chart-blue: #60a5fa;
+  --chart-purple: #c084fc;
+  --chart-gray: #9ca3af;
+  --chart-navy: #7b8fc4;
+  --chart-red: #f87171;
+  --chart-stone: #c2beb8;
+}
+
+/* "Chrome" — elementos que já são propositalmente escuros mesmo no modo
+   claro (barra lateral navy, seções navy do site institucional, botões
+   sólidos lima com texto navy em cima). Esses NÃO devem inverter com o
+   tema: continuam com a mesma cara nos dois modos. Sem isso, a sidebar
+   viraria clara no dark mode (porque --navy clareia) e os botões lima
+   ficariam com texto claro ilegível em cima do próprio lima.
+   Repin local das variáveis de volta pro valor do modo claro, escopado a
+   esses fundos — cascata de custom property, não precisa tocar em nenhum
+   componente. */
+.dark .bg-navy,
+.dark .bg-lime,
+.dark .bg-lime-bright {
+  --navy: #16234a;
+  --navy-soft: #223468;
+  --paper: #f7f8f5;
+  --paper-dim: #edf1e6;
+  --charcoal: #24261f;
+  --rule: #d8ddd0;
+  --color-white: #ffffff;
 }
 
 @theme inline {
@@ -26,12 +119,83 @@
   --color-paper-dim: var(--paper-dim);
   --color-rule: var(--rule);
   --color-charcoal: var(--charcoal);
+  --color-charcoal-soft: var(--charcoal-soft);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
+  --color-warning: var(--warning);
+
+  /* bg-white / text-white / border-white viram tema-cientes também — ver
+     ".dark { --color-white }" abaixo. Cobre de uma vez os "centenas" de
+     cards/tabelas que usam bg-white como fundo (em vez de re-editar cada
+     um pra uma classe nova), sem afetar o texto branco fixo que já mora
+     dentro do chrome navy (pin acima cobre esse caso). */
 
   --font-display: var(--font-display);
   --font-body: var(--font-body);
   --font-mono: var(--font-mono);
 
   --animate-panel-in: panel-in 0.6s ease-out both;
+}
+
+/* bg-white / text-white / border-white / etc — Tailwind expõe "white" como
+   --color-white, então redefinir aqui vale pra QUALQUER utilitário -white
+   do projeto inteiro (cards, tabelas, badge numérico da sidebar...), sem
+   precisar trocar className em cada arquivo. Some(!) por causa do pin acima
+   ("chrome"), que já protege o branco fixo dentro da sidebar/botões lima. */
+:root.dark {
+  --color-white: #171d2a;
+}
+
+/* Badges de status (pendente/atenção/vencido/pago/aviso/em andamento etc) e
+   os banners de notificação usam as cores padrão do Tailwind soltas
+   (bg-amber-50, text-red-700, border-blue-200...) em vez dos tokens do
+   projeto — são DEZENAS de arquivos espalhados por admin e portal.
+   Redefinir as variáveis nativas do Tailwind aqui (mesmo mecanismo de
+   --color-white acima) resolve todos de uma vez, sem editar cada arquivo:
+   qualquer bg-amber-50/text-amber-700/border-amber-200 no projeto inteiro
+   passa a usar automaticamente os valores abaixo dentro de .dark.
+   Padrão: fundo pastel-50/100 vira um tom bem escuro e saturado (~900/950),
+   texto 600/700 vira um tom claro (~300/400), borda 200/300 vira um tom
+   escuro intermediário (~700/800) — mantendo a MESMA relação de contraste
+   texto/fundo do modo claro (~4.5:1+), só invertida. */
+:root.dark {
+  --color-amber-50: #2c1c05;
+  --color-amber-100: #3a2506;
+  --color-amber-200: #5c3a08;
+  --color-amber-300: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #fbbf24;
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #92400e;
+
+  --color-red-50: #2a0e0e;
+  --color-red-200: #7f1d1d;
+  --color-red-500: #f87171;
+  --color-red-600: #f87171;
+  --color-red-700: #fca5a5;
+
+  --color-blue-50: #0f1d33;
+  --color-blue-100: #16274a;
+  --color-blue-200: #1e3a5f;
+  --color-blue-600: #60a5fa;
+  --color-blue-700: #93c5fd;
+  --color-blue-800: #bfdbfe;
+
+  --color-emerald-100: #0f2e22;
+  --color-emerald-700: #6ee7b7;
+
+  --color-purple-100: #2c1b3d;
+  --color-purple-700: #d8b4fe;
+
+  --color-teal-100: #0f2b2a;
+  --color-teal-700: #5eead4;
+
+  --color-gray-100: #1c2128;
+  --color-gray-200: #262c35;
+  --color-gray-300: #3a4149;
+  --color-gray-600: #9ca3af;
+  --color-gray-700: #d1d5db;
 }
 
 @keyframes panel-in {

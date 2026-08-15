@@ -56,9 +56,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f7f8f5] px-4">
-      <div className="w-full max-w-md rounded-2xl border border-[#d8ddd0] bg-white p-8 shadow-sm">
-        <h1 className="mb-6 text-center text-2xl font-bold text-[#16234a]">
+    <div className="flex min-h-screen items-center justify-center bg-paper px-4">
+      <div className="w-full max-w-md rounded-2xl border border-rule bg-white p-8 shadow-sm">
+        <h1 className="mb-6 text-center text-2xl font-bold text-navy">
           Opção Contábil
         </h1>
 
@@ -72,7 +72,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="email"
-              className="mb-1 block text-sm font-medium text-[#223468]"
+              className="mb-1 block text-sm font-medium text-navy-soft"
             >
               E-mail
             </label>
@@ -82,14 +82,14 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-lg border border-[#d8ddd0] px-3 py-2 text-[#16234a] outline-none focus:border-[#8dc63f] focus:ring-2 focus:ring-[#8dc63f]"
+              className="w-full rounded-lg border border-rule px-3 py-2 text-navy outline-none focus:border-lime focus:ring-2 focus:ring-lime"
             />
           </div>
 
           <div>
             <label
               htmlFor="password"
-              className="mb-1 block text-sm font-medium text-[#223468]"
+              className="mb-1 block text-sm font-medium text-navy-soft"
             >
               Senha
             </label>
@@ -98,7 +98,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded-lg border border-[#d8ddd0] px-3 py-2 text-[#16234a] outline-none focus:border-[#8dc63f] focus:ring-2 focus:ring-[#8dc63f]"
+              className="w-full rounded-lg border border-rule px-3 py-2 text-navy outline-none focus:border-lime focus:ring-2 focus:ring-lime"
             />
           </div>
 
@@ -107,7 +107,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-[#8dc63f] py-2 font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+            className="w-full rounded-lg bg-lime py-2 font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
           >
             {loading ? 'Entrando...' : 'Entrar'}
           </button>

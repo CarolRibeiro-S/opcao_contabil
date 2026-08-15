@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import HeaderMobileMenu from './HeaderMobileMenu'
+import ThemeToggle from '@/components/shared/ThemeToggle'
 import logoSimbolo from '../../../public/images/logo-simbolo.png'
 
 const navLinks = [
@@ -38,6 +39,7 @@ export default function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
+          <ThemeToggle className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-navy-soft transition-colors duration-200 hover:bg-paper-dim hover:text-navy" />
           <Link
             href="/login"
             className="inline-flex items-center gap-2 rounded-[3px] border-[1.3px] border-navy px-5 py-2.5 text-sm font-semibold text-navy transition-colors duration-200 hover:bg-navy hover:text-paper"

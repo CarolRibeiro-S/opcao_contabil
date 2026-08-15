@@ -44,8 +44,8 @@ export default function ConvidarClientePortal({
   if (temAcesso) {
     return (
       <div className="flex flex-wrap items-center gap-3">
-        <span className={`${badgeBaseClasses} border border-[#c8e2a1] bg-[#eef7e0] text-[#4f8f2a]`}>
-          <span className="h-1.5 w-1.5 rounded-full bg-[#4f8f2a]" />
+        <span className={`${badgeBaseClasses} border border-success-border bg-success-bg text-success`}>
+          <span className="h-1.5 w-1.5 rounded-full bg-success" />
           Portal: acesso ativo
         </span>
 
