@@ -1,11 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 
-type ComunicadoNaoVisto = {
-  id: string
-  clientes: { nome_empresa: string } | null
-}
-
 function IconSino({ className }: { className?: string }) {
   return (
     <svg
@@ -24,42 +19,37 @@ function IconSino({ className }: { className?: string }) {
   )
 }
 
-// Comunicado com status='respondido' e visto_em nulo = o cliente respondeu
-// por último e nenhum admin abriu essa conversa ainda desde então (ver
-// ThreadComunicado.tsx: visto_em zera a cada mensagem nova do cliente e é
-// marcado com now() quando um admin abre a thread).
+// Card agregado (só contagem) — comunicado com status='respondido' e
+// visto_em nulo = o cliente respondeu por último e nenhum admin abriu essa
+// conversa ainda desde então (ver ThreadComunicado.tsx: visto_em zera a
+// cada mensagem nova do cliente e é marcado com now() quando um admin abre
+// a thread). O link leva pra /admin/comunicados já filtrado por
+// status=respondido (query param lido em ComunicadosTable).
 export default async function NotificacoesRespostas() {
   const supabase = await createClient()
 
-  const { data: naoVistos } = await supabase
+  const { count } = await supabase
     .from('comunicados')
-    .select('id, clientes(nome_empresa)')
+    .select('id', { count: 'exact', head: true })
     .eq('status', 'respondido')
     .is('visto_em', null)
-    .order('created_at', { ascending: false })
-    .limit(10)
-    .returns<ComunicadoNaoVisto[]>()
 
-  const lista = naoVistos ?? []
+  const total = count ?? 0
 
-  if (lista.length === 0) return null
+  if (total === 0) return null
 
-  const nomes = lista.map((comunicado) => comunicado.clientes?.nome_empresa ?? 'Cliente')
-  const nomesVisiveis = nomes.slice(0, 3)
-  const restantes = nomes.length - nomesVisiveis.length
-  const plural = lista.length > 1 ? 's' : ''
+  const plural = total > 1 ? 's' : ''
 
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
       <div className="flex items-center gap-2.5">
         <IconSino className="h-5 w-5 shrink-0 text-amber-600" />
         <p className="text-sm text-amber-800">
-          Você tem {lista.length} nova{plural} resposta{plural}: <strong>{nomesVisiveis.join(', ')}</strong>
-          {restantes > 0 && ` + ${restantes} outro${restantes > 1 ? 's' : ''}`}
+          Você tem <strong>{total}</strong> nova{plural} resposta{plural} em comunicados
         </p>
       </div>
       <Link
-        href="/admin/comunicados"
+        href="/admin/comunicados?status=respondido"
         className="shrink-0 text-sm font-semibold text-amber-800 underline decoration-dotted underline-offset-2 transition-colors duration-200 hover:text-amber-900"
       >
         Ver comunicados

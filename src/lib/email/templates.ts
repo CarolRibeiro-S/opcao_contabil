@@ -802,3 +802,93 @@ export function emailResumoDiarioAdmin({
 
   return { subject, html }
 }
+
+type EmailAlertaFalhaEnvioResendParams = {
+  destinatarios: string
+  assuntoOriginal: string
+  motivo: string
+  dataEventoIso: string
+}
+
+// Aviso pra Carol (fora do admin, direto no e-mail pessoal) quando o
+// webhook da Resend confirma que um envio falhou de verdade — bounce,
+// falha de despacho, atraso de entrega ou reclamação de spam. Diferente do
+// e-mail de resumo diário acima (esse é operacional pro Hederson, dentro
+// do fluxo normal do sistema), este é um alerta pontual de infraestrutura.
+export function emailAlertaFalhaEnvioResend({
+  destinatarios,
+  assuntoOriginal,
+  motivo,
+  dataEventoIso,
+}: EmailAlertaFalhaEnvioResendParams) {
+  const dataEvento = new Date(dataEventoIso)
+  const dataFormatada = dataEvento.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  const horaFormatada = dataEvento.toLocaleTimeString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  const subject = `[Alerta] Falha no envio de e-mail — ${destinatarios}`
+
+  const html = `
+<!doctype html>
+<html lang="pt-BR">
+  <body style="margin:0; padding:0; background-color:#f7f8f5; font-family: Arial, Helvetica, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f8f5; padding:32px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; border:1px solid #d8ddd0; overflow:hidden;">
+            <tr>
+              <td style="background-color:#b91c1c; padding:20px 28px;">
+                <span style="color:#ffffff; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; font-family: 'Courier New', monospace;">
+                  Opção Contábil — Alerta de Entrega
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px;">
+                <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
+                  Um e-mail enviado pelo sistema falhou de verdade na entrega (confirmado pela Resend).
+                </p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px; border:1px solid #d8ddd0; border-radius:6px;">
+                  <tr>
+                    <td style="padding:14px 16px; border-bottom:1px solid #eceee7;">
+                      <p style="margin:0 0 2px; color:#8a8f80; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;">Destinatário</p>
+                      <p style="margin:0; color:#24261f; font-size:14px;">${escapeHtml(destinatarios)}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:14px 16px; border-bottom:1px solid #eceee7;">
+                      <p style="margin:0 0 2px; color:#8a8f80; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;">Assunto original</p>
+                      <p style="margin:0; color:#24261f; font-size:14px;">${escapeHtml(assuntoOriginal)}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:14px 16px; border-bottom:1px solid #eceee7;">
+                      <p style="margin:0 0 2px; color:#8a8f80; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;">Motivo</p>
+                      <p style="margin:0; color:#b91c1c; font-size:14px; font-weight:bold;">${escapeHtml(motivo)}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:14px 16px;">
+                      <p style="margin:0 0 2px; color:#8a8f80; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;">Quando</p>
+                      <p style="margin:0; color:#24261f; font-size:14px;">${dataFormatada} às ${horaFormatada}</p>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:0; color:#55564a; font-size:13px;">
+                  Aviso automático via webhook da Resend.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`.trim()
+
+  return { subject, html }
+}

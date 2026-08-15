@@ -130,9 +130,17 @@ export default function ComunicadosTable({ comunicados }: { comunicados: Comunic
     // Lido do window.location (não useSearchParams) de propósito — mesma
     // técnica já usada em /login e /verificar-codigo: evita exigir Suspense
     // boundary só pra abrir direto numa conversa específica quando se chega
-    // aqui pelo link "Ver conversa" dos cards de Comunicados do Dashboard.
+    // aqui pelo link "Ver conversa" dos cards de Comunicados do Dashboard,
+    // ou já filtrado por status quando se chega pelo card "Respostas de
+    // comunicados" (NotificacoesRespostas, link ?status=respondido).
     const params = new URLSearchParams(window.location.search)
     const idDestacado = params.get('comunicado')
+    const statusParam = params.get('status')
+
+    if (statusParam && statusParam in statusLabel) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFiltroStatus(statusParam)
+    }
 
     const indice = comunicados.findIndex((comunicado) => comunicado.id === idDestacado)
     if (indice === -1) return
