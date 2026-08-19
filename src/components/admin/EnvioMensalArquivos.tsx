@@ -5,6 +5,7 @@ import {
   detectarClientePorCnpj,
   detectarClientePorNomeArquivo,
   detectarTipo,
+  somenteDigitos,
   TIPOS_SEM_VENCIMENTO,
   type ArquivoRevisado,
   type ClienteOption,
@@ -47,9 +48,12 @@ export default function EnvioMensalArquivos({
         id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
         file,
         clienteId: deteccao.clienteId,
+        clienteIdDetectado: deteccao.clienteId,
         tipo: detectarTipo(file.name) ?? '',
         dataVencimento: '',
         origemDeteccao: deteccao.origemDeteccao as OrigemDeteccao,
+        cnpjCompletoExtraido: null,
+        cnpjRaizExtraido: null,
       }
     })
 
@@ -106,8 +110,15 @@ export default function EnvioMensalArquivos({
           return {
             ...arquivo,
             clienteId,
+            // Só atualiza a "detecção" (a baseline usada pro aviso de
+            // divergência) quando o CNPJ realmente bateu com algum cliente —
+            // do contrário mantém o que a detecção por nome já tinha achado,
+            // que continua sendo a melhor detecção automática disponível.
+            clienteIdDetectado: clienteIdPorCnpj ?? arquivo.clienteIdDetectado,
             origemDeteccao,
             dataVencimento: extraido.dataVencimento ?? arquivo.dataVencimento,
+            cnpjCompletoExtraido: extraido.cnpjCompleto,
+            cnpjRaizExtraido: extraido.cnpjRaiz,
           }
         })
       )
@@ -285,6 +296,56 @@ export default function EnvioMensalArquivos({
   )
 }
 
+// Apelido primeiro (ex: "Centro Oeste — GABRIELLA A. O. DE S. MACHADO
+// COMERCIO") — o nome legal completo sozinho, numa lista de ~50+ opções em
+// ordem alfabética, foi o que tornou fácil selecionar a empresa errada no
+// caso Agatha/Centro Oeste (apelido curto e reconhecível bate mais rápido
+// visualmente que ler nome jurídico completo).
+function rotuloCliente(cliente: ClienteOption) {
+  return cliente.apelido ? `${cliente.apelido} — ${cliente.nome_empresa}` : cliente.nome_empresa
+}
+
+function nomeParaExibicao(clienteId: string, clientes: ClienteOption[]) {
+  const cliente = clientes.find((c) => c.id === clienteId)
+  if (!cliente) return 'Cliente'
+  return cliente.apelido || cliente.nome_empresa
+}
+
+// Segundo sinal de possível arquivo no lugar errado: o CNPJ lido de dentro
+// do PDF não bate com o cadastrado pro cliente ATUALMENTE selecionado
+// (detectado automaticamente ou escolhido manualmente — os dois casos
+// contam, por pedido explícito).
+function cnpjDivergente(arquivo: ArquivoRevisado, clientes: ClienteOption[]) {
+  if (!arquivo.cnpjCompletoExtraido && !arquivo.cnpjRaizExtraido) return false
+
+  const clienteSelecionado = clientes.find((c) => c.id === arquivo.clienteId)
+  if (!clienteSelecionado?.cnpj_cpf) return false
+
+  const cnpjSelecionado = somenteDigitos(clienteSelecionado.cnpj_cpf)
+
+  if (arquivo.cnpjCompletoExtraido) return cnpjSelecionado !== arquivo.cnpjCompletoExtraido
+  if (arquivo.cnpjRaizExtraido) return cnpjSelecionado.slice(0, 8) !== arquivo.cnpjRaizExtraido
+  return false
+}
+
+function IconAlerta({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M10 3.3L17.5 16.2h-15z" />
+      <path d="M10 8.2v3.3M10 14.2h.01" />
+    </svg>
+  )
+}
+
 function Badge({ origem }: { origem: OrigemDeteccao }) {
   if (origem === 'cnpj') {
     return (
@@ -340,28 +401,43 @@ function LinhaArquivo({
   onAtualizar: (id: string, campo: 'clienteId' | 'tipo' | 'dataVencimento', valor: string) => void
   onRemover: (id: string) => void
 }) {
+  // Só conta como divergência de seleção se JÁ havia uma detecção
+  // automática (clienteIdDetectado não vazio) E a seleção atual foi pra um
+  // cliente diferente dela — arquivo que nunca teve detecção nenhuma
+  // (clienteIdDetectado === '') e foi preenchido manualmente não dispara
+  // isso, não tem baseline pra comparar.
+  const divergenciaSelecao =
+    !!arquivo.clienteIdDetectado && !!arquivo.clienteId && arquivo.clienteIdDetectado !== arquivo.clienteId
+  const divergenciaCnpj = cnpjDivergente(arquivo, clientes)
+  const temAviso = divergenciaSelecao || divergenciaCnpj
+
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-md border border-rule bg-paper-dim px-3 py-2.5">
-      <Badge origem={arquivo.origemDeteccao} />
-
-      <span className="min-w-0 flex-1 truncate text-sm text-charcoal" title={arquivo.file.name}>
-        {arquivo.file.name}
-      </span>
-
-      {processando && <span className="shrink-0 text-xs text-navy-soft">lendo...</span>}
-
-      <select
-        value={arquivo.clienteId}
-        onChange={(event) => onAtualizar(arquivo.id, 'clienteId', event.target.value)}
-        className="rounded-[3px] border border-rule bg-white px-2 py-1.5 text-xs text-charcoal outline-none focus:border-lime"
+    <div className="flex flex-col gap-1.5">
+      <div
+        className={`flex flex-wrap items-center gap-3 rounded-md border px-3 py-2.5 ${
+          temAviso ? 'border-amber-400 bg-amber-50' : 'border-rule bg-paper-dim'
+        }`}
       >
-        <option value="">Selecione o cliente</option>
-        {clientes.map((cliente) => (
-          <option key={cliente.id} value={cliente.id}>
-            {cliente.nome_empresa}
-          </option>
-        ))}
-      </select>
+        <Badge origem={arquivo.origemDeteccao} />
+
+        <span className="min-w-0 flex-1 truncate text-sm text-charcoal" title={arquivo.file.name}>
+          {arquivo.file.name}
+        </span>
+
+        {processando && <span className="shrink-0 text-xs text-navy-soft">lendo...</span>}
+
+        <select
+          value={arquivo.clienteId}
+          onChange={(event) => onAtualizar(arquivo.id, 'clienteId', event.target.value)}
+          className="rounded-[3px] border border-rule bg-white px-2 py-1.5 text-xs text-charcoal outline-none focus:border-lime"
+        >
+          <option value="">Selecione o cliente</option>
+          {clientes.map((cliente) => (
+            <option key={cliente.id} value={cliente.id}>
+              {rotuloCliente(cliente)}
+            </option>
+          ))}
+        </select>
 
       <select
         value={arquivo.tipo}
@@ -376,24 +452,46 @@ function LinhaArquivo({
         ))}
       </select>
 
-      {TIPOS_SEM_VENCIMENTO.includes(arquivo.tipo) ? (
-        <span className="shrink-0 px-2 py-1.5 text-xs italic text-navy-soft">Não se aplica</span>
-      ) : (
-        <input
-          type="date"
-          value={arquivo.dataVencimento}
-          onChange={(event) => onAtualizar(arquivo.id, 'dataVencimento', event.target.value)}
-          className="shrink-0 rounded-[3px] border border-rule bg-white px-2 py-1.5 text-xs text-charcoal outline-none focus:border-lime"
-        />
-      )}
+        {TIPOS_SEM_VENCIMENTO.includes(arquivo.tipo) ? (
+          <span className="shrink-0 px-2 py-1.5 text-xs italic text-navy-soft">Não se aplica</span>
+        ) : (
+          <input
+            type="date"
+            value={arquivo.dataVencimento}
+            onChange={(event) => onAtualizar(arquivo.id, 'dataVencimento', event.target.value)}
+            className="shrink-0 rounded-[3px] border border-rule bg-white px-2 py-1.5 text-xs text-charcoal outline-none focus:border-lime"
+          />
+        )}
 
-      <button
-        type="button"
-        onClick={() => onRemover(arquivo.id)}
-        className="shrink-0 text-xs font-semibold text-navy-soft hover:text-red-600"
-      >
-        remover
-      </button>
+        <button
+          type="button"
+          onClick={() => onRemover(arquivo.id)}
+          className="shrink-0 text-xs font-semibold text-navy-soft hover:text-red-600"
+        >
+          remover
+        </button>
+      </div>
+
+      {temAviso && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <IconAlerta className="h-4 w-4 shrink-0" />
+          <div className="flex flex-col gap-1">
+            {divergenciaSelecao && (
+              <p>
+                Este arquivo parece ser da empresa{' '}
+                <strong>{nomeParaExibicao(arquivo.clienteIdDetectado, clientes)}</strong>, mas você selecionou{' '}
+                <strong>{nomeParaExibicao(arquivo.clienteId, clientes)}</strong>. Confirme se a troca está certa.
+              </p>
+            )}
+            {divergenciaCnpj && (
+              <p>
+                O CNPJ encontrado dentro do PDF não bate com o CNPJ cadastrado de{' '}
+                <strong>{nomeParaExibicao(arquivo.clienteId, clientes)}</strong>. Confira se é o cliente certo.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

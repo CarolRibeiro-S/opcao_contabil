@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { reverterReceitaDoHonorario, sincronizarReceitaDoHonorario } from '@/lib/receitaHonorario'
+import { marcarHonorarioComoPago, reverterReceitaDoHonorario } from '@/lib/receitaHonorario'
 import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 
 export default function MarcarComoPago({
@@ -21,22 +21,7 @@ export default function MarcarComoPago({
 
   async function handleMarcarComoPago() {
     setLoading(true)
-    const hoje = new Date().toISOString().slice(0, 10)
-    const { error } = await supabase
-      .from('cobrancas')
-      .update({ status: 'pago', data_pagamento: hoje })
-      .eq('id', id)
-
-    if (!error) {
-      await sincronizarReceitaDoHonorario(supabase, id)
-      registrarHistoricoAtividade({
-        acao: 'marcou_pago',
-        entidade: 'honorario',
-        entidadeId: id,
-        entidadeNome,
-      })
-    }
-
+    await marcarHonorarioComoPago(supabase, id, entidadeNome)
     setLoading(false)
     router.refresh()
   }

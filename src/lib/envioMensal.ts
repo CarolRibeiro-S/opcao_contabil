@@ -208,7 +208,7 @@ export function detectarClientePorNomeArquivo(
   return { clienteId: '', origemDeteccao: 'manual' }
 }
 
-function somenteDigitos(texto: string) {
+export function somenteDigitos(texto: string) {
   return texto.replace(/\D/g, '')
 }
 
@@ -256,4 +256,14 @@ export type ArquivoRevisado = {
   tipo: string
   dataVencimento: string
   origemDeteccao: OrigemDeteccao
+  // clienteId nunca muda depois de setado por detecção AUTOMÁTICA (nome de
+  // arquivo ou CNPJ extraído do PDF) — troca manual no dropdown não mexe
+  // aqui. É contra isso que a Etapa 2 compara pra mostrar o aviso de
+  // possível seleção errada (ver AvisoDivergencia em EnvioMensalArquivos.tsx).
+  clienteIdDetectado: string
+  // CNPJ lido de dentro do PDF (se algum foi encontrado) — usado pro
+  // segundo tipo de aviso: bate com o CNPJ do cliente atualmente
+  // selecionado (automático ou manual)?
+  cnpjCompletoExtraido: string | null
+  cnpjRaizExtraido: string | null
 }

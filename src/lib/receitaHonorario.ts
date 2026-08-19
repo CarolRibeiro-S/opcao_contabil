@@ -1,4 +1,5 @@
 import type { createClient } from '@/lib/supabase/client'
+import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 
 type SupabaseNavegador = ReturnType<typeof createClient>
 
@@ -88,4 +89,36 @@ export async function reverterReceitaDoHonorario(supabase: SupabaseNavegador, co
     .from('receitas')
     .update({ status: 'a_receber', data_recebimento: null })
     .eq('honorario_id', cobrancaId)
+}
+
+/**
+ * Sequência completa de "marcar como pago" — atualiza a cobrança, sincroniza
+ * a receita espelhada e registra no histórico. Extraída pra ser chamada tanto
+ * pela ação individual (MarcarComoPago.tsx) quanto pela ação em lote
+ * (CobrancasTable.tsx), sem duplicar a lógica nos dois lugares.
+ */
+export async function marcarHonorarioComoPago(
+  supabase: SupabaseNavegador,
+  cobrancaId: string,
+  entidadeNome: string
+): Promise<boolean> {
+  const hoje = new Date().toISOString().slice(0, 10)
+
+  const { error } = await supabase
+    .from('cobrancas')
+    .update({ status: 'pago', data_pagamento: hoje })
+    .eq('id', cobrancaId)
+
+  if (error) return false
+
+  await sincronizarReceitaDoHonorario(supabase, cobrancaId)
+
+  registrarHistoricoAtividade({
+    acao: 'marcou_pago',
+    entidade: 'honorario',
+    entidadeId: cobrancaId,
+    entidadeNome,
+  })
+
+  return true
 }

@@ -96,86 +96,96 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
         <p className="text-sm text-navy-soft">Nenhum cliente encontrado para essa busca.</p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-rule bg-white">
-          <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] text-left text-sm">
-            <thead className="bg-paper-dim">
-              <tr>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Código
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  CNPJ
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Empresa
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Tipo
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Segmento
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Status
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Acesso ao Portal
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Responsável
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Telefone
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {clientesFiltrados.map((cliente) => (
-                <tr key={cliente.id} className="border-t border-rule">
-                  <td className="px-4 py-3 font-mono text-charcoal">{cliente.codigo_interno ?? '—'}</td>
-                  <td className="px-4 py-3 text-charcoal">{cliente.cnpj_cpf ?? '—'}</td>
-                  <td className="px-4 py-3 font-medium text-navy">{cliente.nome_empresa}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-1.5">
+          {/* max-h + overflow-auto (não só overflow-x-auto): limita a altura
+              do próprio container ao viewport, então a barra de rolagem
+              horizontal fica sempre na borda de baixo DESSA caixa — visível
+              sem precisar rolar a página inteira primeiro. thead sticky
+              (top-0) mantém o cabeçalho visível durante o scroll vertical
+              interno; a coluna Empresa (sticky left-0, movida pra primeira
+              posição) fica fixada durante o scroll horizontal, já que é o
+              dado mais usado pra identificar a linha. */}
+          <div className="max-h-[calc(100vh-300px)] overflow-auto">
+            <table className="w-full min-w-[1180px] text-left text-sm">
+              <thead className="sticky top-0 z-10 bg-paper-dim">
+                <tr>
+                  <th className="sticky left-0 z-20 border-r border-rule bg-paper-dim px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Empresa
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Código
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    CNPJ
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Tipo
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Segmento
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Acesso ao Portal
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Responsável
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Telefone
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                    Ações
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {clientesFiltrados.map((cliente) => (
+                  <tr key={cliente.id} className="border-t border-rule">
+                    <td className="sticky left-0 z-10 border-r border-rule bg-white px-4 py-3 font-medium text-navy">
+                      {cliente.nome_empresa}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-charcoal">{cliente.codigo_interno ?? '—'}</td>
+                    <td className="px-4 py-3 text-charcoal">{cliente.cnpj_cpf ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${
+                            tipoBadge[cliente.tipo] ?? 'border border-rule bg-paper-dim text-navy-soft'
+                          }`}
+                        >
+                          {tipoLabel[cliente.tipo] ?? cliente.tipo}
+                        </span>
+                        {cliente.regime_tributario && (
+                          <span className="rounded-full border border-rule bg-paper-dim px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] text-navy-soft">
+                            {regimeLabel[cliente.regime_tributario] ?? cliente.regime_tributario}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-charcoal">{cliente.segmento ?? '—'}</td>
+                    <td className="px-4 py-3">
                       <span
                         className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${
-                          tipoBadge[cliente.tipo] ?? 'border border-rule bg-paper-dim text-navy-soft'
+                          statusBadge[cliente.status] ?? 'border border-rule bg-paper-dim text-navy-soft'
                         }`}
                       >
-                        {tipoLabel[cliente.tipo] ?? cliente.tipo}
+                        {cliente.status}
                       </span>
-                      {cliente.regime_tributario && (
-                        <span className="rounded-full border border-rule bg-paper-dim px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] text-navy-soft">
-                          {regimeLabel[cliente.regime_tributario] ?? cliente.regime_tributario}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-charcoal">{cliente.segmento ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${
-                        statusBadge[cliente.status] ?? 'border border-rule bg-paper-dim text-navy-soft'
-                      }`}
-                    >
-                      {cliente.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <BadgeAcessoPortal profileId={cliente.profile_id} acessoConfirmado={cliente.acessoConfirmado} />
-                  </td>
-                  <td className="px-4 py-3 text-charcoal">{cliente.responsavel ?? '—'}</td>
-                  <td className="px-4 py-3 text-charcoal">{cliente.telefone ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <AcoesCliente id={cliente.id} nome={cliente.nome_empresa} status={cliente.status} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </td>
+                    <td className="px-4 py-3">
+                      <BadgeAcessoPortal profileId={cliente.profile_id} acessoConfirmado={cliente.acessoConfirmado} />
+                    </td>
+                    <td className="px-4 py-3 text-charcoal">{cliente.responsavel ?? '—'}</td>
+                    <td className="px-4 py-3 text-charcoal">{cliente.telefone ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <AcoesCliente id={cliente.id} nome={cliente.nome_empresa} status={cliente.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
