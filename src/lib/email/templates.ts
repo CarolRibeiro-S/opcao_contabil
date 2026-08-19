@@ -83,7 +83,12 @@ function envelopeEmailPadrao(corpo: string) {
 // dependia do e-mail automático do inviteUserByEmail() (não dava pra
 // customizar nem mostrar o código nele).
 export function emailConvitePortalCliente({ nomeDestinatario, codigo, linkVerificarCodigo }: EmailCodigoAcessoParams) {
-  const subject = 'Seu acesso ao Portal do Cliente — Opção Contábil'
+  // Nome do destinatário no assunto — sem isso, dois convites (ex: duas
+  // empresas do mesmo dono, mesmo e-mail de contato) ficam com assunto
+  // idêntico e o Gmail agrupa como uma única conversa, escondendo um dos
+  // dois convites (mesma causa raiz do bug de "só recebi um dos e-mails"
+  // investigado no Envio Mensal).
+  const subject = `Seu acesso ao Portal do Cliente — ${nomeDestinatario} — Opção Contábil`
 
   const corpo = `
                 <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
@@ -104,7 +109,7 @@ export function emailConvitePortalCliente({ nomeDestinatario, codigo, linkVerifi
 // Reenvio pra cliente que já tem conta (profile_id já vinculado) — usado
 // quando o link/código original expirou antes de ser usado.
 export function emailReenvioConvite({ nomeDestinatario, codigo, linkVerificarCodigo }: EmailCodigoAcessoParams) {
-  const subject = 'Novo código de acesso — Portal do Cliente'
+  const subject = `Novo código de acesso — ${nomeDestinatario} — Portal do Cliente`
 
   const corpo = `
                 <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
@@ -152,7 +157,12 @@ type EmailComunicadoParams = {
 }
 
 export function emailComunicado({ nomeCliente, titulo, mensagem, tipo }: EmailComunicadoParams) {
-  const subject = titulo
+  // Nome do cliente no assunto: enviar-massa (comunicado em lote) manda o
+  // MESMO título pra vários clientes de uma vez — se dois deles
+  // compartilharem e-mail de contato (ex: mesmo dono, empresas
+  // diferentes), o Gmail agrupa os dois na mesma conversa e um passa
+  // despercebido. Mesma causa raiz do bug investigado no Envio Mensal.
+  const subject = `${titulo} — ${nomeCliente}`
 
   const mensagemHtml = escapeHtml(mensagem).replace(/\n/g, '<br />')
 
@@ -225,7 +235,7 @@ export function emailNovaMensagemComunicado({
   mensagem,
   link,
 }: EmailNovaMensagemComunicadoParams) {
-  const subject = `Nova mensagem em "${tituloComunicado}" — Opção Contábil`
+  const subject = `Nova mensagem em "${tituloComunicado}" — ${nomeDestinatario} — Opção Contábil`
 
   const mensagemHtml = mensagem ? escapeHtml(mensagem).replace(/\n/g, '<br />') : '<em>(enviou um anexo)</em>'
 
@@ -277,7 +287,12 @@ export function emailAlertaPrazo({
   const dataFormatada = `${dia}/${mes}/${ano}`
   const plural = diasRestantes === 1 ? 'dia' : 'dias'
 
-  const subject = `Atenção: ${nomeObrigacao} vence em ${diasRestantes} ${plural}`
+  // Nome do cliente no assunto — esses alertas vão TODOS pro mesmo endereço
+  // (ADMIN_ALERT_EMAIL, ver cron/prazos), então dois clientes diferentes
+  // com a mesma obrigação vencendo no mesmo prazo (ex: "DAS vence em 5
+  // dias") geram assunto idêntico e o Gmail agrupa como uma única
+  // conversa — mesma causa raiz do bug investigado no Envio Mensal.
+  const subject = `Atenção: ${nomeObrigacao} vence em ${diasRestantes} ${plural} — ${nomeCliente}`
 
   const html = `
 <!doctype html>
@@ -340,7 +355,7 @@ export function emailAlertaPrazoAntecipado({
   const dataFormatada = `${dia}/${mes}/${ano}`
   const plural = diasRestantes === 1 ? 'dia' : 'dias'
 
-  const subject = `Lembrete: ${nomeObrigacao} vence em ${diasRestantes} ${plural}`
+  const subject = `Lembrete: ${nomeObrigacao} vence em ${diasRestantes} ${plural} — ${nomeCliente}`
 
   const html = `
 <!doctype html>
@@ -396,7 +411,7 @@ export function emailAlertaTarefa({ titulo, nomeCliente, dataLimite, diasRestant
   const dataFormatada = `${dia}/${mes}/${ano}`
   const plural = diasRestantes === 1 ? 'dia' : 'dias'
 
-  const subject = `Tarefa pendente: ${titulo} — vence em ${diasRestantes} ${plural}`
+  const subject = `Tarefa pendente: ${titulo} — vence em ${diasRestantes} ${plural} — ${nomeCliente}`
 
   const html = `
 <!doctype html>
@@ -470,7 +485,13 @@ export function emailImpostosMensal({
   const [ano, mes] = competencia.split('-')
   const competenciaFormatada = `${mes}/${ano}`
 
-  const subject = `Impostos de ${competenciaFormatada} — Opção Contábil`
+  // Nome do cliente no assunto — a causa raiz do bug reportado: 4 clientes
+  // diferentes (mesmo dono, mesmo e-mail de contato) recebendo "Impostos
+  // de 07/2026 — Opção Contábil" com assunto IDÊNTICO faziam o Gmail
+  // agrupar tudo numa única conversa, e o destinatário só via o e-mail
+  // mais recente do grupo — os outros pareciam "não entregues", mas a
+  // Resend confirmou entrega dos 3 (checado no painel).
+  const subject = `Impostos de ${competenciaFormatada} — ${nomeCliente} — Opção Contábil`
 
   const linhasItens = itens
     .map((item) => {
@@ -608,7 +629,7 @@ export function emailSolicitacaoMensal({
   const competenciaFormatada = `${mes}/${ano}`
 
   const { titulo, introducao } = textosPorTipoEnvio(tipo, competenciaFormatada)
-  const subject = `${titulo} — Opção Contábil`
+  const subject = `${titulo} — ${nomeCliente} — Opção Contábil`
 
   const itensLista = [
     emiteNotasFiscais ? 'XML das notas fiscais emitidas no período' : null,
@@ -918,7 +939,11 @@ export function emailCobrancaBoleto({ nomeCliente, competencia, valor, dataVenci
   const dataFormatada = `${diaVenc}/${mesVenc}/${anoVenc}`
   const valorFormatado = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-  const subject = `Boleto do honorário — ${competenciaFormatada}`
+  // Nome do cliente no assunto — WNF/WNR/WGKS/Calebe (os mesmos 4 clientes
+  // do bug de threading no Envio Mensal) também têm honorário mensal
+  // automático (ver gerarHonorarios.ts) com o mesmo dono/e-mail — sem o
+  // nome aqui, o boleto de um deles reproduziria o mesmo problema.
+  const subject = `Boleto do honorário — ${competenciaFormatada} — ${nomeCliente}`
 
   const corpo = `
                 <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
