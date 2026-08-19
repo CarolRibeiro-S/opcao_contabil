@@ -114,6 +114,12 @@ export default function EditarCobrancaForm({ cobranca }: { cobranca: Cobranca })
       boletoNome = arquivoBoleto.name
     }
 
+    // Só dispara o e-mail se o boleto estava vazio ANTES desta edição e
+    // passou a ter valor agora — troca de um boleto por outro (já tinha,
+    // virou outro arquivo) não reenvia automaticamente, por pedido
+    // explícito (ver api/cobrancas/notificar-boleto pro reenvio manual).
+    const primeiraVezComBoleto = !cobranca.boleto_caminho_arquivo && !!boletoCaminho
+
     const { error: updateError } = await supabase
       .from('cobrancas')
       .update({
@@ -144,6 +150,30 @@ export default function EditarCobrancaForm({ cobranca }: { cobranca: Cobranca })
         competencia ? formatarCompetenciaCurta(competencia) : '—'
       }`,
     })
+
+    // O honorário já está salvo neste ponto — uma falha aqui não deve
+    // travar a navegação (o boleto continua anexado de verdade), só avisar
+    // que o e-mail em si não saiu, pra não passar a falsa impressão de que
+    // o cliente foi notificado.
+    if (primeiraVezComBoleto) {
+      try {
+        const resposta = await fetch('/api/cobrancas/notificar-boleto', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cobrancaId: cobranca.id }),
+        })
+
+        if (!resposta.ok) {
+          window.alert(
+            'Boleto salvo, mas houve um erro ao enviar o e-mail pro cliente. Use "Reenviar e-mail" na lista de Honorários pra tentar de novo.'
+          )
+        }
+      } catch {
+        window.alert(
+          'Boleto salvo, mas houve um erro ao enviar o e-mail pro cliente. Use "Reenviar e-mail" na lista de Honorários pra tentar de novo.'
+        )
+      }
+    }
 
     router.push('/admin/cobrancas')
     router.refresh()

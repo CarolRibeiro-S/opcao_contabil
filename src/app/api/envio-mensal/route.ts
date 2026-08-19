@@ -8,6 +8,71 @@ import { sanitizarNomeArquivo } from '@/lib/storage/sanitizarNomeArquivo'
 
 export const dynamic = 'force-dynamic'
 
+// Mesmo problema (e mesma correção) do cron/prazos: processamento sequencial
+// de um cliente por vez — aqui ainda mais pesado, porque cada item envolve
+// upload de arquivo(s) pro Storage e um e-mail com anexo em base64, não só
+// um e-mail de texto. Era exatamente isso que fazia até um lote de 5
+// clientes (TAMANHO_LOTE do frontend, ver EnvioMensalConfirmacao.tsx)
+// estourar o tempo da function e voltar "Falha de rede ou tempo esgotado"
+// pra todo mundo daquele lote, mesmo que nenhum e-mail tivesse falhado de
+// verdade — só não deu tempo de processar. O Next.js exige que
+// "maxDuration" seja um literal (testado no cron/prazos: referência de
+// const quebra o build) — por isso não dá pra compartilhar o mesmo valor
+// via variável com o cálculo da trava de tempo logo abaixo. SE MUDAR UM,
+// MUDE O OUTRO.
+export const maxDuration = 60
+const MAX_DURATION_SEGUNDOS = 60
+
+// Quantos clientes processamos ao mesmo tempo. Na prática, cada requisição
+// já chega com no máximo TAMANHO_LOTE (5, do frontend) clientes de uma vez,
+// então isso processa o lote inteiro em paralelo — mas mantém um teto caso
+// esse valor do frontend mude no futuro.
+const TAMANHO_LOTE_ENVIO = 10
+
+// Rede de segurança contra o lote ainda demorar demais (upload de arquivo
+// grande, Storage lento, etc.): ao passar de 80% do maxDuration, para de
+// começar clientes NOVOS e devolve uma resposta com o que já foi
+// processado — em vez de deixar a Vercel matar a function no meio, o que
+// derruba a conexão inteira e faz até quem já tinha sido enviado com
+// sucesso aparecer como falha pro admin (a causa raiz do bug reportado).
+// Quem não deu tempo de processar entra em "falhas" com um motivo
+// específico, orientando reenviar só esses — sem duplicar quem já recebeu
+// (o e-mail desses já foi confirmado enviado E o registro em
+// documentos_clientes já foi gravado antes da trava entrar em ação).
+const FRACAO_LIMITE_TEMPO = 0.8
+const LIMITE_TEMPO_MS = MAX_DURATION_SEGUNDOS * 1000 * FRACAO_LIMITE_TEMPO
+
+function tempoEsgotado(inicioExecucao: number): boolean {
+  return Date.now() - inicioExecucao > LIMITE_TEMPO_MS
+}
+
+type ResultadoLotes = { processados: number; interrompidoPorTempo: boolean }
+
+// Roda `tarefa` em paralelo pra cada item da lista, em lotes de
+// `tamanhoLote` por vez. Antes de CADA lote novo (nunca no meio de um lote
+// já em andamento), confere se já passou de FRACAO_LIMITE_TEMPO do tempo
+// disponível — se sim, para ali e devolve quantos itens ficaram de fora.
+async function emLotes<T>(
+  itens: T[],
+  tamanhoLote: number,
+  inicioExecucao: number,
+  tarefa: (item: T) => Promise<void>
+): Promise<ResultadoLotes> {
+  for (let i = 0; i < itens.length; i += tamanhoLote) {
+    if (tempoEsgotado(inicioExecucao)) {
+      console.error(
+        `[envio-mensal] Tempo esgotado (>${FRACAO_LIMITE_TEMPO * 100}% de ${MAX_DURATION_SEGUNDOS}s) — parando com ${itens.length - i} cliente(s) não processado(s).`
+      )
+      return { processados: i, interrompidoPorTempo: true }
+    }
+
+    const lote = itens.slice(i, i + tamanhoLote)
+    await Promise.all(lote.map((item) => tarefa(item)))
+  }
+
+  return { processados: itens.length, interrompidoPorTempo: false }
+}
+
 type ArquivoGrupo = { chave: string; nomeArquivo: string; tipo: string; dataVencimento: string }
 type Grupo = { clienteId: string; arquivos: ArquivoGrupo[] }
 
@@ -45,6 +110,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Dados inválidos.' }, { status: 400 })
   }
 
+  const inicioExecucao = Date.now()
+
   const supabaseAdmin = createAdminClient()
   const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -55,12 +122,12 @@ export async function POST(request: Request) {
   let emailsEnviados = 0
   const falhas: Falha[] = []
 
-  for (const grupo of grupos) {
+  const resultado = await emLotes(grupos, TAMANHO_LOTE_ENVIO, inicioExecucao, async (grupo) => {
     const cliente = clientePorId.get(grupo.clienteId)
 
     if (!cliente) {
       falhas.push({ clienteId: grupo.clienteId, nomeCliente: 'Desconhecido', motivo: 'Cliente não encontrado.' })
-      continue
+      return
     }
 
     if (!cliente.email) {
@@ -69,7 +136,7 @@ export async function POST(request: Request) {
         nomeCliente: cliente.nome_empresa,
         motivo: 'Cliente sem e-mail cadastrado.',
       })
-      continue
+      return
     }
 
     const anexos: { filename: string; content: string }[] = []
@@ -118,7 +185,7 @@ export async function POST(request: Request) {
         nomeCliente: cliente.nome_empresa,
         motivo: 'Nenhum arquivo pôde ser enviado ao Storage.',
       })
-      continue
+      return
     }
 
     const itens = grupo.arquivos
@@ -157,7 +224,7 @@ export async function POST(request: Request) {
         nomeCliente: cliente.nome_empresa,
         motivo: 'Falha ao enviar o e-mail.',
       })
-      continue
+      return
     }
 
     const agora = new Date().toISOString()
@@ -176,15 +243,30 @@ export async function POST(request: Request) {
         nomeCliente: cliente.nome_empresa,
         motivo: 'E-mail enviado, mas houve um erro ao registrar os documentos.',
       })
-      continue
+      return
     }
 
     emailsEnviados += 1
+  })
+
+  // Clientes que sobraram porque a trava de tempo interrompeu antes de
+  // chegar neles — nunca tiveram e-mail nem upload tentados, então é seguro
+  // reenviar só esses depois, sem risco de duplicar nada.
+  if (resultado.interrompidoPorTempo) {
+    for (const grupo of grupos.slice(resultado.processados)) {
+      const cliente = clientePorId.get(grupo.clienteId)
+      falhas.push({
+        clienteId: grupo.clienteId,
+        nomeCliente: cliente?.nome_empresa ?? 'Cliente',
+        motivo: 'Não processado a tempo neste lote — reenvie este(s) cliente(s) separadamente.',
+      })
+    }
   }
 
   return NextResponse.json({
     emailsEnviados,
     totalClientes: grupos.length,
     falhas,
+    interrompidoPorTempo: resultado.interrompidoPorTempo,
   })
 }

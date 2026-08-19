@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import MarcarComoPago from '@/components/admin/MarcarComoPago'
+import { createAdminClient } from '@/lib/supabase/admin'
+import CobrancasTable, { type FalhaEntrega } from '@/components/admin/CobrancasTable'
 
 type Cobranca = {
   id: string
@@ -9,36 +10,47 @@ type Cobranca = {
   status: string
   data_vencimento: string | null
   descricao: string | null
+  boleto_caminho_arquivo: string | null
+  enviado_email_em: string | null
+  resend_email_id: string | null
   clientes: { nome_empresa: string } | null
 }
 
-const statusBadge: Record<string, string> = {
-  em_aberto: 'bg-amber-50 text-amber-700 border border-amber-200',
-  pago: 'bg-success-bg text-success border border-success-border',
-  atrasado: 'bg-red-50 text-red-700 border border-red-200',
-}
+type EventoRow = { resend_email_id: string; tipo: string; detalhe: string | null; criado_em: string }
 
-const statusLabel: Record<string, string> = {
-  em_aberto: 'Em Aberto',
-  pago: 'Pago',
-  atrasado: 'Atrasado',
-}
+// email_eventos tem RLS habilitado sem nenhuma policy (de propósito — ver
+// migration) — só a service role (createAdminClient) consegue ler. Mesmo
+// raciocínio já usado pra last_sign_in_at em admin/clientes/page.tsx: em
+// vez de escrever uma policy nova que reproduza a lógica de "é admin"
+// (motivo do aviso de segurança do is_admin() ficar exposto), a tabela
+// simplesmente não é alcançável pela API pública — só por código
+// server-side de confiança, com a service role key.
+//
+// "Mais recente vence": se um resend_email_id tiver mais de um evento (ex:
+// delivery_delayed seguido de bounced), o mapa fica só com o último,
+// porque a query já vem ordenada por criado_em crescente.
+async function buscarEventosFalha(resendEmailIds: string[]): Promise<Map<string, FalhaEntrega>> {
+  if (resendEmailIds.length === 0) return new Map()
 
-function formatarData(data: string | null) {
-  if (!data) return '—'
-  const [ano, mes, dia] = data.split('-')
-  return `${dia}/${mes}/${ano}`
-}
+  const supabaseAdmin = createAdminClient()
 
-function formatarCompetencia(data: string | null) {
-  if (!data) return '—'
-  const [ano, mes] = data.split('-')
-  return `${mes}/${ano}`
-}
+  const { data, error } = await supabaseAdmin
+    .from('email_eventos')
+    .select('resend_email_id, tipo, detalhe, criado_em')
+    .in('resend_email_id', resendEmailIds)
+    .order('criado_em', { ascending: true })
+    .returns<EventoRow[]>()
 
-function formatarValor(valor: number | null) {
-  if (valor === null) return '—'
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  if (error) {
+    console.error('[admin/cobrancas] Erro ao buscar email_eventos:', error)
+    return new Map()
+  }
+
+  const mapa = new Map<string, FalhaEntrega>()
+  for (const evento of data ?? []) {
+    mapa.set(evento.resend_email_id, { tipo: evento.tipo, detalhe: evento.detalhe, criadoEm: evento.criado_em })
+  }
+  return mapa
 }
 
 export default async function CobrancasPage() {
@@ -49,6 +61,17 @@ export default async function CobrancasPage() {
     .select('*, clientes(nome_empresa)')
     .order('data_vencimento', { ascending: true })
     .returns<Cobranca[]>()
+
+  const idsComEmail = (cobrancas ?? [])
+    .map((cobranca) => cobranca.resend_email_id)
+    .filter((id): id is string => !!id)
+
+  const eventosFalha = await buscarEventosFalha(idsComEmail)
+
+  const cobrancasComFalha = (cobrancas ?? []).map((cobranca) => ({
+    ...cobranca,
+    falhaEntrega: cobranca.resend_email_id ? (eventosFalha.get(cobranca.resend_email_id) ?? null) : null,
+  }))
 
   return (
     <div>
@@ -68,77 +91,11 @@ export default async function CobrancasPage() {
           padding-top do <main> (64px) + a linha de título+botão (36px) já
           ocupam). */}
       <div className="mt-[61px]">
-      {!cobrancas || cobrancas.length === 0 ? (
-        <p className="text-sm text-navy-soft">Nenhum honorário cadastrado ainda.</p>
-      ) : (
-        <div className="overflow-hidden rounded-lg border border-rule bg-white">
-          <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="bg-paper-dim">
-              <tr>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Cliente
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Competência
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Valor
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Vencimento
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Status
-                </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {cobrancas.map((cobranca) => (
-                <tr key={cobranca.id} className="border-t border-rule">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-navy">{cobranca.clientes?.nome_empresa ?? '—'}</p>
-                    {cobranca.descricao && (
-                      <p className="mt-0.5 text-xs text-navy-soft/70">{cobranca.descricao}</p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-charcoal">{formatarCompetencia(cobranca.competencia)}</td>
-                  <td className="px-4 py-3 text-charcoal">{formatarValor(cobranca.valor)}</td>
-                  <td className="px-4 py-3 text-charcoal">{formatarData(cobranca.data_vencimento)}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${
-                        statusBadge[cobranca.status] ?? 'border border-rule bg-paper-dim text-navy-soft'
-                      }`}
-                    >
-                      {statusLabel[cobranca.status] ?? cobranca.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Link
-                        href={`/admin/cobrancas/${cobranca.id}/editar`}
-                        className="text-xs font-semibold text-navy-soft transition-colors duration-200 hover:text-navy"
-                      >
-                        Editar
-                      </Link>
-                      <MarcarComoPago
-                        id={cobranca.id}
-                        status={cobranca.status}
-                        entidadeNome={`${cobranca.clientes?.nome_empresa ?? 'Cliente'} — ${formatarCompetencia(cobranca.competencia)}`}
-                      />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-        </div>
-      )}
+        {cobrancasComFalha.length === 0 ? (
+          <p className="text-sm text-navy-soft">Nenhum honorário cadastrado ainda.</p>
+        ) : (
+          <CobrancasTable cobrancas={cobrancasComFalha} />
+        )}
       </div>
     </div>
   )

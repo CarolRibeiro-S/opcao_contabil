@@ -54,6 +54,12 @@ const PALAVRAS_CHAVE_TIPO: { palavra: string; tipo: string }[] = [
   { palavra: 'CNPJ', tipo: 'Documentos da Empresa' },
   { palavra: 'CFDF', tipo: 'Documentos da Empresa' },
   { palavra: 'DRE', tipo: 'Documentos da Empresa' },
+  // Uma entrada só cobre "PRO LABORE", "PRO-LABORE" e "PROLABORE" — o nome
+  // do arquivo já passa por normalizarTexto antes da comparação, que
+  // remove espaço/hífen/acento e deixa tudo maiúsculo, então as três
+  // grafias caem no mesmo "PROLABORE" comparado aqui. Uma entrada literal
+  // com espaço nunca daria match (normalizado nunca tem espaço).
+  { palavra: 'PROLABORE', tipo: 'Documentos da Empresa' },
 ]
 
 export function normalizarTexto(texto: string) {

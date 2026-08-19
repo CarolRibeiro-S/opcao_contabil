@@ -10,6 +10,8 @@ type Prazo = {
   competencia: string | null
   data_vencimento: string | null
   status: string
+  comprovante_url: string | null
+  entregue_em: string | null
   clientes: { nome_empresa: string } | null
   obrigacoes_acessorias: { nome: string } | null
 }

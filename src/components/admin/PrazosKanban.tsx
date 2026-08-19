@@ -10,8 +10,29 @@ type Prazo = {
   competencia: string | null
   data_vencimento: string | null
   status: string
+  comprovante_url: string | null
+  entregue_em: string | null
   clientes: { nome_empresa: string } | null
   obrigacoes_acessorias: { nome: string } | null
+}
+
+const BUCKET_COMPROVANTES = 'documentos-clientes'
+
+function IconCheck({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M4 10.5l4 4 8-9" />
+    </svg>
+  )
 }
 
 const COLUNAS = [
@@ -41,6 +62,17 @@ function formatarCompetencia(data: string | null) {
   if (!data) return '—'
   const [ano, mes] = data.split('-')
   return `${mes}/${ano}`
+}
+
+function formatarDataHora(iso: string) {
+  const data = new Date(iso)
+  const dataFormatada = data.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  const horaFormatada = data.toLocaleTimeString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  return `${dataFormatada} às ${horaFormatada}`
 }
 
 export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo[] }) {
@@ -73,6 +105,27 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
       entidadeNome: `${prazo.obrigacoes_acessorias?.nome ?? 'Obrigação'} — ${prazo.clientes?.nome_empresa ?? 'Cliente'}`,
       detalhes: `${tituloAnterior} → ${tituloNovo}`,
     })
+  }
+
+  function comprovanteAnexado(id: string, comprovanteUrl: string, entregueEm: string) {
+    setPrazos((atual) =>
+      atual.map((prazo) =>
+        prazo.id === id
+          ? { ...prazo, comprovante_url: comprovanteUrl, entregue_em: entregueEm, status: 'em_dia' }
+          : prazo
+      )
+    )
+  }
+
+  function comprovanteRemovido(id: string) {
+    setPrazos((atual) =>
+      atual.map((prazo) => (prazo.id === id ? { ...prazo, comprovante_url: null, entregue_em: null } : prazo))
+    )
+  }
+
+  async function verComprovante(caminhoArquivo: string) {
+    const { data } = await supabase.storage.from(BUCKET_COMPROVANTES).createSignedUrl(caminhoArquivo, 3600)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
   }
 
   return (
@@ -108,6 +161,11 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
                       <AcoesPrazo
                         id={prazo.id}
                         entidadeNome={`${prazo.obrigacoes_acessorias?.nome ?? 'Obrigação'} — ${prazo.clientes?.nome_empresa ?? 'Cliente'}`}
+                        comprovanteUrl={prazo.comprovante_url}
+                        onComprovanteAnexado={(comprovanteUrl, entregueEm) =>
+                          comprovanteAnexado(prazo.id, comprovanteUrl, entregueEm)
+                        }
+                        onComprovanteRemovido={() => comprovanteRemovido(prazo.id)}
                       />
                     </div>
                     <p className="mt-2 font-mono text-[11px] text-navy-soft">
@@ -116,6 +174,22 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
                     <p className="font-mono text-[11px] text-navy-soft">
                       Vencimento: {formatarData(prazo.data_vencimento)}
                     </p>
+
+                    {prazo.entregue_em && (
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <IconCheck className="h-3.5 w-3.5 shrink-0 text-success" />
+                        <p className="text-[11px] text-success">Entregue em {formatarDataHora(prazo.entregue_em)}</p>
+                        {prazo.comprovante_url && (
+                          <button
+                            type="button"
+                            onClick={() => verComprovante(prazo.comprovante_url!)}
+                            className="text-[11px] font-semibold text-success underline decoration-dotted underline-offset-2 transition-colors duration-200 hover:text-success/80"
+                          >
+                            Ver comprovante
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     <div className="mt-3 flex items-center justify-between border-t border-rule pt-2.5">
                       <button

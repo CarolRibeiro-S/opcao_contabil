@@ -11,6 +11,7 @@ import ComunicadosCliente from '@/components/admin/ComunicadosCliente'
 import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 import CampoDocumento from '@/components/shared/CampoDocumento'
 import CampoTelefone from '@/components/shared/CampoTelefone'
+import CampoMoeda from '@/components/shared/CampoMoeda'
 import ConvidarClientePortal from '@/components/admin/ConvidarClientePortal'
 import { sanitizarNomeArquivo } from '@/lib/storage/sanitizarNomeArquivo'
 
@@ -35,6 +36,8 @@ type Cliente = {
   responsavel: string | null
   email: string | null
   telefone: string | null
+  honorario_valor_mensal: number | null
+  honorario_dia_vencimento: number | null
   observacoes: string | null
   status: string
   profile_id: string | null
@@ -77,6 +80,10 @@ export default function EditarClienteForm({
   const [responsavel, setResponsavel] = useState(cliente.responsavel ?? '')
   const [email, setEmail] = useState(cliente.email ?? '')
   const [telefone, setTelefone] = useState(cliente.telefone ?? '')
+  const [honorarioValorMensal, setHonorarioValorMensal] = useState<number | null>(cliente.honorario_valor_mensal)
+  const [honorarioDiaVencimento, setHonorarioDiaVencimento] = useState(
+    cliente.honorario_dia_vencimento !== null ? String(cliente.honorario_dia_vencimento) : ''
+  )
   const [observacoes, setObservacoes] = useState(cliente.observacoes ?? '')
   const [status, setStatus] = useState(cliente.status)
 
@@ -109,6 +116,8 @@ export default function EditarClienteForm({
         responsavel: responsavel || null,
         email: email || null,
         telefone: telefone || null,
+        honorario_valor_mensal: honorarioValorMensal,
+        honorario_dia_vencimento: honorarioDiaVencimento ? Number(honorarioDiaVencimento) : null,
         observacoes: observacoes || null,
         status,
       })
@@ -393,6 +402,43 @@ export default function EditarClienteForm({
               Telefone
             </label>
             <CampoTelefone id="telefone" valor={telefone} onChange={setTelefone} className={inputClasses} />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-rule bg-paper-dim p-4">
+          <p className={labelClasses}>Honorário mensal (opcional)</p>
+          <p className="mb-3 -mt-1 text-xs text-navy-soft">
+            Preenchendo os dois campos abaixo, o cliente passa a ter o honorário do mês gerado
+            automaticamente todo dia 1 (o boleto continua sendo anexado manualmente depois).
+          </p>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div>
+              <label htmlFor="honorarioValorMensal" className={labelClasses}>
+                Valor mensal
+              </label>
+              <CampoMoeda
+                id="honorarioValorMensal"
+                valor={honorarioValorMensal}
+                onChange={setHonorarioValorMensal}
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="honorarioDiaVencimento" className={labelClasses}>
+                Dia de vencimento
+              </label>
+              <input
+                id="honorarioDiaVencimento"
+                type="number"
+                min={1}
+                max={31}
+                placeholder="Ex: 10"
+                value={honorarioDiaVencimento}
+                onChange={(e) => setHonorarioDiaVencimento(e.target.value)}
+                className={inputClasses}
+              />
+            </div>
           </div>
         </div>
 

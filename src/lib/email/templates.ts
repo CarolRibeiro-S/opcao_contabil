@@ -262,6 +262,11 @@ type EmailAlertaPrazoParams = {
   diasRestantes: number
 }
 
+// Alerta INTERNO (só o escritório recebe, ver cron/prazos) — obrigação
+// acessória é responsabilidade exclusiva da Opção Contábil, então o texto
+// se dirige à equipe, não ao cliente (nome do cliente aparece só como
+// referência, entre parênteses, igual ao padrão já usado em
+// emailAlertaTarefa).
 export function emailAlertaPrazo({
   nomeCliente,
   nomeObrigacao,
@@ -292,15 +297,13 @@ export function emailAlertaPrazo({
             <tr>
               <td style="padding:28px;">
                 <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
-                  Olá, <strong>${nomeCliente}</strong>,
+                  Prazo de cliente com vencimento próximo.
                 </p>
                 <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
-                  A obrigação <strong style="color:#16234a;">${nomeObrigacao}</strong> vence em
+                  A obrigação <strong style="color:#16234a;">${nomeObrigacao}</strong> (cliente
+                  <strong>${nomeCliente}</strong>) vence em
                   <strong style="color:#8dc63f;">${diasRestantes} ${plural}</strong>, no dia
                   <strong>${dataFormatada}</strong>.
-                </p>
-                <p style="margin:0 0 24px; color:#24261f; font-size:15px; line-height:1.5;">
-                  Fique atento para não perder o prazo. Se precisar de qualquer informação, é só nos chamar.
                 </p>
                 <p style="margin:0; color:#55564a; font-size:13px;">
                   — Opção Contábil
@@ -321,6 +324,12 @@ export function emailAlertaPrazo({
 // Mesmo alerta de emailAlertaPrazo, mas pra janela mais antecipada (10 dias)
 // — tom deliberadamente menos urgente ("Fique de olho" em vez de "Atenção"),
 // já que ainda não é hora de soar alarme, só de dar um aviso antecedido.
+//
+// Assim como emailAlertaPrazo, esse é um alerta INTERNO (só o escritório
+// recebe — obrigação acessória é responsabilidade exclusiva da Opção
+// Contábil, o cliente não deve ser notificado disso, só confundia). Por
+// isso o texto não se dirige ao cliente ("Olá, X") nem promete retorno
+// ("é só nos chamar") — é um aviso operacional pra equipe.
 export function emailAlertaPrazoAntecipado({
   nomeCliente,
   nomeObrigacao,
@@ -351,15 +360,13 @@ export function emailAlertaPrazoAntecipado({
             <tr>
               <td style="padding:28px;">
                 <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
-                  Olá, <strong>${nomeCliente}</strong>,
+                  Prazo de cliente vencendo em breve — ainda não é urgente.
                 </p>
                 <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
-                  Fique de olho: a obrigação <strong style="color:#16234a;">${nomeObrigacao}</strong> vence em
+                  Fique de olho: a obrigação <strong style="color:#16234a;">${nomeObrigacao}</strong> (cliente
+                  <strong>${nomeCliente}</strong>) vence em
                   <strong style="color:#8dc63f;">${diasRestantes} ${plural}</strong>, no dia
                   <strong>${dataFormatada}</strong>.
-                </p>
-                <p style="margin:0 0 24px; color:#24261f; font-size:15px; line-height:1.5;">
-                  Ainda dá tempo de se organizar com calma. Se precisar de qualquer informação, é só nos chamar.
                 </p>
                 <p style="margin:0; color:#55564a; font-size:13px;">
                   — Opção Contábil
@@ -891,4 +898,53 @@ export function emailAlertaFalhaEnvioResend({
 `.trim()
 
   return { subject, html }
+}
+
+type EmailCobrancaBoletoParams = {
+  nomeCliente: string
+  competencia: string
+  valor: number
+  dataVencimento: string
+}
+
+// Disparado quando o Hederson anexa o boleto de um honorário pela primeira
+// vez (ver EditarCobrancaForm.tsx / api/cobrancas/notificar-boleto) — o
+// boleto em si vai como anexo do e-mail, não como link, já que o cliente
+// não tem obrigação de acessar o Portal só pra pegar o PDF.
+export function emailCobrancaBoleto({ nomeCliente, competencia, valor, dataVencimento }: EmailCobrancaBoletoParams) {
+  const [anoComp, mesComp] = competencia.split('-')
+  const competenciaFormatada = `${mesComp}/${anoComp}`
+  const [anoVenc, mesVenc, diaVenc] = dataVencimento.split('-')
+  const dataFormatada = `${diaVenc}/${mesVenc}/${anoVenc}`
+  const valorFormatado = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+  const subject = `Boleto do honorário — ${competenciaFormatada}`
+
+  const corpo = `
+                <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
+                  Olá, <strong>${escapeHtml(nomeCliente)}</strong>,
+                </p>
+                <p style="margin:0 0 20px; color:#24261f; font-size:15px; line-height:1.5;">
+                  Segue em anexo o boleto do seu honorário contábil referente a
+                  <strong style="color:#16234a;">${competenciaFormatada}</strong>.
+                </p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px; border:1px solid #d8ddd0; border-radius:6px;">
+                  <tr>
+                    <td style="padding:14px 16px; border-bottom:1px solid #eceee7;">
+                      <p style="margin:0 0 2px; color:#8a8f80; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;">Valor</p>
+                      <p style="margin:0; color:#24261f; font-size:14px;">${valorFormatado}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:14px 16px;">
+                      <p style="margin:0 0 2px; color:#8a8f80; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;">Vencimento</p>
+                      <p style="margin:0; color:#24261f; font-size:14px;">${dataFormatada}</p>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:0; color:#55564a; font-size:13px;">
+                  — Opção Contábil
+                </p>`
+
+  return { subject, html: envelopeEmailPadrao(corpo) }
 }

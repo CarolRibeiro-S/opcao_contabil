@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import type { WebhookEventPayload } from 'resend'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { emailAlertaFalhaEnvioResend } from '@/lib/email/templates'
 
 export const dynamic = 'force-dynamic'
@@ -85,10 +86,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignorado: true })
   }
 
+  const motivo = descreverFalha(evento)
+
+  // Persiste ANTES de tentar mandar o aviso pessoal — é o registro que
+  // alimenta o status de entrega na tela de Honorários (CobrancasTable.tsx),
+  // a parte que fica pro Hederson enxergar sozinho, sem depender da Carol.
+  // Falha aqui não derruba o resto do webhook: o aviso pessoal continua
+  // tentando ser enviado mesmo que a gravação no banco falhe.
+  const supabaseAdmin = createAdminClient()
+
+  const { error: insertError } = await supabaseAdmin.from('email_eventos').insert({
+    resend_email_id: evento.data.email_id,
+    tipo: evento.type.replace(/^email\./, ''),
+    detalhe: motivo,
+  })
+
+  if (insertError) {
+    console.error('[webhooks/resend] Falha ao gravar evento em email_eventos:', insertError)
+  }
+
   const { subject, html } = emailAlertaFalhaEnvioResend({
     destinatarios: evento.data.to.join(', '),
     assuntoOriginal: evento.data.subject,
-    motivo: descreverFalha(evento),
+    motivo,
     dataEventoIso: evento.created_at,
   })
 

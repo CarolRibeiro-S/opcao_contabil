@@ -116,7 +116,7 @@ type Prazo = {
   data_vencimento: string | null
   notificado_em: string | null
   notificado_10_em: string | null
-  clientes: { nome_empresa: string; email: string | null } | null
+  clientes: { nome_empresa: string } | null
   obrigacoes_acessorias: { nome: string } | null
 }
 
@@ -167,10 +167,18 @@ export async function GET(request: Request) {
 
   const hoje = new Date().toISOString().slice(0, 10)
 
+  // .in('status', ['pendente', 'atencao']) não é só uma otimização — é o
+  // que garante que prazos com comprovante anexado (status forçado pra
+  // 'em_dia' em AcoesPrazo.tsx, ver comprovante_url/entregue_em) nunca
+  // voltem a ser reprocessados por data aqui, mesmo que o vencimento já
+  // tenha passado ou volte a passar no futuro. Se esse filtro for
+  // alterado pra incluir 'em_dia', a Etapa 1 abaixo passa a poder mover
+  // prazos já entregues de volta pra 'atencao'/'vencido' — o que quebra a
+  // regra "entregue é resolvido, independente da data".
   const { data: prazos, error } = await supabase
     .from('prazos')
     .select(
-      'id, status, data_vencimento, notificado_em, notificado_10_em, clientes(nome_empresa, email), obrigacoes_acessorias(nome)'
+      'id, status, data_vencimento, notificado_em, notificado_10_em, clientes(nome_empresa), obrigacoes_acessorias(nome)'
     )
     .in('status', ['pendente', 'atencao'])
     .returns<Prazo[]>()
@@ -229,7 +237,6 @@ export async function GET(request: Request) {
 
   let alertas10DiasEnviados = 0
   let emailsEnviados = 0
-  let puladosPorFaltaDeEmail = 0
   const lembretes10Dias: ItemResumo[] = []
 
   const candidatosAlertaAntecipado = (prazos ?? []).filter((prazo) => {
@@ -238,14 +245,13 @@ export async function GET(request: Request) {
     return diasRestantes <= 10 && diasRestantes > 5 && !prazo.notificado_10_em
   })
 
+  // Alerta de obrigação acessória (SPED Fiscal, EFD-Reinf, DCTFWeb,
+  // e-Social etc.) é responsabilidade exclusiva do escritório — o cliente
+  // NÃO recebe mais esse aviso (só confundia, caso real: cliente Microroad
+  // perguntando o que era o alerta de e-Social). Vai só pro e-mail interno
+  // (ADMIN_ALERT_EMAIL), independente de o cliente ter e-mail cadastrado ou
+  // não — diferente de antes, isso não bloqueia mais o envio.
   const resultadoAntecipado = await emLotes(candidatosAlertaAntecipado, TAMANHO_LOTE_ENVIO, inicioExecucao, async (prazo) => {
-    const email = prazo.clientes?.email
-
-    if (!email) {
-      puladosPorFaltaDeEmail += 1
-      return
-    }
-
     const nomeCliente = prazo.clientes?.nome_empresa ?? 'Cliente'
     const nomeObrigacao = prazo.obrigacoes_acessorias?.nome ?? 'Obrigação'
     const diasRestantes = diasEntre(prazo.data_vencimento!, hoje)
@@ -259,8 +265,7 @@ export async function GET(request: Request) {
 
     const { data: emailData, error: emailError } = await resend.emails.send({
       from: 'naoresponda@opcaocontabilbsb.com.br',
-      to: email,
-      cc: process.env.ADMIN_ALERT_EMAIL,
+      to: process.env.ADMIN_ALERT_EMAIL!,
       subject,
       html,
     })
@@ -282,14 +287,8 @@ export async function GET(request: Request) {
     return diasRestantes <= 5 && !prazo.notificado_em
   })
 
+  // Mesmo motivo do bloco antecipado acima — só o escritório recebe.
   const resultadoPrincipal = await emLotes(candidatosAlertaPrincipal, TAMANHO_LOTE_ENVIO, inicioExecucao, async (prazo) => {
-    const email = prazo.clientes?.email
-
-    if (!email) {
-      puladosPorFaltaDeEmail += 1
-      return
-    }
-
     const nomeCliente = prazo.clientes?.nome_empresa ?? 'Cliente'
     const nomeObrigacao = prazo.obrigacoes_acessorias?.nome ?? 'Obrigação'
     const diasRestantes = diasEntre(prazo.data_vencimento!, hoje)
@@ -303,8 +302,7 @@ export async function GET(request: Request) {
 
     const { data: emailData, error: emailError } = await resend.emails.send({
       from: 'naoresponda@opcaocontabilbsb.com.br',
-      to: email,
-      cc: process.env.ADMIN_ALERT_EMAIL,
+      to: process.env.ADMIN_ALERT_EMAIL!,
       subject,
       html,
     })
@@ -382,7 +380,6 @@ export async function GET(request: Request) {
     viraramVencido,
     emailsEnviados,
     alertas10DiasEnviados,
-    puladosPorFaltaDeEmail,
     tarefasNotificadas,
     resumoEnviado: !resumoError,
     // true quando alguma etapa de envio parou antes de terminar a lista

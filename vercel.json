@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/solicitacao-mensal",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/gerar-honorarios",
+      "schedule": "0 9 1 * *"
     }
   ]
 }

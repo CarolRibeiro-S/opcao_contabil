@@ -15,6 +15,7 @@ type Cliente = {
   telefone: string | null
   regime_tributario: string | null
   profile_id: string | null
+  acessoConfirmado: boolean
 }
 
 const tipoBadge: Record<string, string> = {
@@ -37,6 +38,35 @@ const regimeLabel: Record<string, string> = {
 const statusBadge: Record<string, string> = {
   ativo: 'bg-success-bg text-success border border-success-border',
   inativo: 'bg-paper-dim text-navy-soft border border-rule',
+}
+
+// Independente do badge de Ativo/Inativo acima — esse é sobre ACESSO AO
+// PORTAL, não sobre o cliente em si. profile_id preenchido só significa que
+// o convite foi enviado (ver ConvidarClientePortal.tsx); não significa que
+// a pessoa terminou de criar a senha. Só last_sign_in_at (via Auth Admin
+// API, ver admin/clientes/page.tsx) confirma isso de verdade.
+function BadgeAcessoPortal({ profileId, acessoConfirmado }: { profileId: string | null; acessoConfirmado: boolean }) {
+  if (!profileId) {
+    return (
+      <span className="rounded-full border border-rule bg-paper-dim px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] text-navy-soft">
+        Não convidado
+      </span>
+    )
+  }
+
+  if (!acessoConfirmado) {
+    return (
+      <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] text-amber-700">
+        Convite pendente
+      </span>
+    )
+  }
+
+  return (
+    <span className="rounded-full border border-success-border bg-success-bg px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] text-success">
+      Acesso confirmado
+    </span>
+  )
 }
 
 export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
@@ -67,7 +97,7 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
       ) : (
         <div className="overflow-hidden rounded-lg border border-rule bg-white">
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px] text-left text-sm">
+          <table className="w-full min-w-[1180px] text-left text-sm">
             <thead className="bg-paper-dim">
               <tr>
                 <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
@@ -89,6 +119,9 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
                   Status
                 </th>
                 <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
+                  Acesso ao Portal
+                </th>
+                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
                   Responsável
                 </th>
                 <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-[0.08em] text-navy-soft">
@@ -104,17 +137,7 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
                 <tr key={cliente.id} className="border-t border-rule">
                   <td className="px-4 py-3 font-mono text-charcoal">{cliente.codigo_interno ?? '—'}</td>
                   <td className="px-4 py-3 text-charcoal">{cliente.cnpj_cpf ?? '—'}</td>
-                  <td className="px-4 py-3 font-medium text-navy">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span
-                        title={cliente.profile_id ? 'Acesso ao portal ativo' : 'Ainda não convidado pro portal'}
-                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                          cliente.profile_id ? 'bg-success' : 'bg-navy-soft/30'
-                        }`}
-                      />
-                      {cliente.nome_empresa}
-                    </span>
-                  </td>
+                  <td className="px-4 py-3 font-medium text-navy">{cliente.nome_empresa}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span
@@ -140,6 +163,9 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
                     >
                       {cliente.status}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <BadgeAcessoPortal profileId={cliente.profile_id} acessoConfirmado={cliente.acessoConfirmado} />
                   </td>
                   <td className="px-4 py-3 text-charcoal">{cliente.responsavel ?? '—'}</td>
                   <td className="px-4 py-3 text-charcoal">{cliente.telefone ?? '—'}</td>
