@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getClienteAtual } from '@/lib/portal/getClienteAtual'
 import AdminMobileNav from '@/components/admin/AdminMobileNav'
 import Sidebar, { type SidebarLink } from '@/components/shared/Sidebar'
+import SeletorEmpresa from '@/components/portal/SeletorEmpresa'
 import logo from '../../../public/images/logo-simbolo.png'
 
 const navLinks: SidebarLink[] = [
@@ -38,13 +40,19 @@ export default async function PortalLayout({
     redirect('/admin')
   }
 
-  const { data: cliente } = await supabase
-    .from('clientes')
-    .select('nome_empresa')
-    .eq('profile_id', user.id)
-    .single()
+  // getClienteAtual() já faz a própria checagem de sessão (redundante com o
+  // getUser() acima, mas é o mesmo padrão já usado nas 6 páginas do Portal
+  // — não vale a pena desconstruir isso só aqui). cliente é a empresa
+  // ATIVA (pelo cookie, ou a primeira da lista); todosClientes é a lista
+  // completa, usada só pra decidir se mostra o seletor.
+  const { cliente, todosClientes } = await getClienteAtual()
 
   const usuarioNome = cliente?.nome_empresa ?? 'Cliente'
+
+  const seletorEmpresa =
+    cliente && todosClientes.length > 1 ? (
+      <SeletorEmpresa clientes={todosClientes} clienteAtivoId={cliente.id} />
+    ) : undefined
 
   return (
     <div className="flex min-h-screen flex-col bg-paper md:flex-row">
@@ -55,6 +63,7 @@ export default async function PortalLayout({
         navLinks={navLinks}
         usuarioNome={usuarioNome}
         usuarioEmail={user.email}
+        extra={seletorEmpresa}
       />
 
       <Sidebar
@@ -64,6 +73,7 @@ export default async function PortalLayout({
         links={navLinks}
         usuarioNome={usuarioNome}
         usuarioEmail={user.email}
+        extra={seletorEmpresa}
       />
 
       {/* pt-16 (64px) no desktop = md:p-8 (32px) de antes + 32px a mais, pra

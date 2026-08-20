@@ -3,7 +3,7 @@ import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { registrarHistorico } from '@/lib/historico'
-import { emailConvitePortalCliente, emailReenvioConvite } from '@/lib/email/templates'
+import { emailConvitePortalCliente, emailEmpresaVinculada, emailReenvioConvite } from '@/lib/email/templates'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,6 +55,68 @@ export async function POST(request: Request) {
 
   if (!cliente.email) {
     return NextResponse.json({ error: 'Cliente sem e-mail cadastrado.' }, { status: 400 })
+  }
+
+  // Segundo passo do fluxo "e-mail já existe" (ver branch jaExiste mais
+  // abaixo): o admin já confirmou explicitamente que é a mesma pessoa —
+  // vincula esta empresa à conta existente em vez de criar um usuário
+  // novo. Re-busca o profile pelo e-mail aqui de novo (não confia no que
+  // o front mandou) — evita vincular a um profile_id arbitrário caso o
+  // corpo da requisição seja manipulado.
+  if (body.vincularContaExistente === true) {
+    const { data: contaExistente } = await supabaseAdmin
+      .from('profiles')
+      .select('id, nome')
+      .eq('email', cliente.email)
+      .maybeSingle()
+
+    if (!contaExistente) {
+      return NextResponse.json(
+        { error: 'Não encontrei mais a conta existente pra vincular. Tente convidar de novo.' },
+        { status: 404 }
+      )
+    }
+
+    const { error: vinculoError } = await supabaseAdmin
+      .from('clientes')
+      .update({ profile_id: contaExistente.id })
+      .eq('id', clienteId)
+
+    if (vinculoError) {
+      return NextResponse.json(
+        { error: 'Não foi possível vincular esta empresa à conta existente.', detalhes: vinculoError.message },
+        { status: 500 }
+      )
+    }
+
+    const resend = new Resend(process.env.RESEND_API_KEY)
+    const { subject, html } = emailEmpresaVinculada({
+      nomeDestinatario: contaExistente.nome ?? cliente.nome_empresa,
+      nomeEmpresa: cliente.nome_empresa,
+    })
+
+    const { error: emailError } = await resend.emails.send({
+      from: 'naoresponda@opcaocontabilbsb.com.br',
+      to: cliente.email,
+      subject,
+      html,
+    })
+
+    if (emailError) {
+      console.error('[api/clientes/convidar] Empresa vinculada, mas falhou o e-mail de aviso:', emailError)
+    }
+
+    await registrarHistorico({
+      usuarioId: user.id,
+      usuarioNome: profile?.nome ?? user.email ?? 'Administrador',
+      acao: 'convidou',
+      entidade: 'cliente',
+      entidadeId: clienteId,
+      entidadeNome: cliente.nome_empresa,
+      detalhes: `Vinculado à conta existente (mesmo e-mail já usado por ${contaExistente.nome ?? 'outra empresa'}).`,
+    })
+
+    return NextResponse.json({ sucesso: true, vinculado: true, avisoEmail: !!emailError })
   }
 
   // Cliente já tem conta no portal (profile_id vinculado) — o código/link
@@ -146,17 +208,12 @@ export async function POST(request: Request) {
     if (conviteError || !convite.user || !convite.properties?.email_otp) {
       console.error('[api/clientes/convidar] Erro ao chamar generateLink (invite):', conviteError)
 
-      const jaExiste =
-        conviteError?.status === 422 || (conviteError?.message ?? '').toLowerCase().includes('already')
-
       return NextResponse.json(
         {
-          error: jaExiste
-            ? 'Já existe um usuário cadastrado com esse e-mail.'
-            : 'Não foi possível enviar o convite. Tente novamente.',
+          error: 'Não foi possível enviar o convite. Tente novamente.',
           detalhes: conviteError?.message ?? 'generateLink não retornou usuário nem código.',
         },
-        { status: jaExiste ? 409 : 500 }
+        { status: 500 }
       )
     }
 
@@ -168,6 +225,37 @@ export async function POST(request: Request) {
     })
 
     if (profileError) {
+      // Testado direto contra o Supabase Auth: generateLink({type:'invite'})
+      // NÃO falha pra e-mail que já tem conta — ele devolve o MESMO usuário
+      // existente de novo, sem erro nenhum. É só aqui, no insert de
+      // profiles (chave primária = auth user id), que a colisão realmente
+      // aparece — código 23505 (unique_violation). Antes disso rodava uma
+      // checagem no erro do generateLink que nunca disparava de verdade.
+      if (profileError.code === '23505') {
+        // Provavelmente outra empresa do mesmo dono, já convidada antes —
+        // em vez de só rejeitar, busca essa conta e devolve pro front
+        // oferecer o vínculo. NUNCA vincula automaticamente: e-mail
+        // coincidente entre clientes DIFERENTES é possível (endereço
+        // genérico compartilhado por engano, por exemplo), e vincular
+        // errado vazaria dados de um cliente pro outro — precisa de
+        // confirmação explícita do admin (branch vincularContaExistente,
+        // no topo da rota).
+        const { data: contaExistente } = await supabaseAdmin
+          .from('profiles')
+          .select('nome')
+          .eq('id', convite.user.id)
+          .maybeSingle()
+
+        return NextResponse.json(
+          {
+            error: 'Já existe uma conta com esse e-mail.',
+            jaExisteConta: true,
+            contaExistente: { nome: contaExistente?.nome ?? null },
+          },
+          { status: 409 }
+        )
+      }
+
       console.error('[api/clientes/convidar] Erro ao gravar profile:', profileError)
 
       return NextResponse.json(

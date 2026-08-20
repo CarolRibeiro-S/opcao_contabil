@@ -117,6 +117,7 @@ export default function Sidebar({
   links,
   usuarioNome,
   usuarioEmail,
+  extra,
 }: {
   logoSrc: StaticImageData
   titulo: string
@@ -124,6 +125,7 @@ export default function Sidebar({
   links: SidebarLink[]
   usuarioNome: string
   usuarioEmail?: string | null
+  extra?: React.ReactNode
 }) {
   return (
     <aside className="hidden w-[260px] shrink-0 flex-col bg-navy md:flex">
@@ -148,6 +150,11 @@ export default function Sidebar({
             </p>
           )}
         </div>
+        {/* Slot genérico — hoje só usado pelo Portal pra mostrar o seletor
+            de empresa (SeletorEmpresa.tsx), condicional a 2+ empresas
+            vinculadas ao login. O Admin não passa nada aqui, então fica
+            visualmente idêntico ao que já era. */}
+        {extra}
       </div>
 
       <nav className="sidebar-scroll mt-7 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-6">

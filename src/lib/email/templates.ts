@@ -129,6 +129,36 @@ export function emailReenvioConvite({ nomeDestinatario, codigo, linkVerificarCod
   return { subject, html: envelopeEmailPadrao(corpo) }
 }
 
+type EmailEmpresaVinculadaParams = {
+  nomeDestinatario: string
+  nomeEmpresa: string
+}
+
+// Disparado quando uma empresa nova é vinculada a uma conta que JÁ existe
+// (mesmo dono, mesmo e-mail, mais de uma empresa — ver
+// api/clientes/convidar/route.ts). Diferente do convite normal, aqui não
+// tem código nenhum: a pessoa já tem senha, só ganhou acesso a mais uma
+// empresa no mesmo login.
+export function emailEmpresaVinculada({ nomeDestinatario, nomeEmpresa }: EmailEmpresaVinculadaParams) {
+  const subject = `Nova empresa vinculada ao seu acesso — ${nomeEmpresa} — Opção Contábil`
+
+  const corpo = `
+                <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
+                  Olá, <strong>${escapeHtml(nomeDestinatario)}</strong>,
+                </p>
+                <p style="margin:0 0 20px; color:#24261f; font-size:15px; line-height:1.5;">
+                  A empresa <strong style="color:#16234a;">${escapeHtml(nomeEmpresa)}</strong> foi vinculada
+                  ao seu acesso do <strong style="color:#16234a;">Portal do Cliente</strong>. Use o mesmo
+                  login de sempre — agora dá pra alternar entre suas empresas direto pelo menu lateral do
+                  Portal, sem precisar de um código novo.
+                </p>
+                <p style="margin:0; color:#55564a; font-size:13px;">
+                  — Opção Contábil
+                </p>`
+
+  return { subject, html: envelopeEmailPadrao(corpo) }
+}
+
 // Convite de um membro da equipe pro Painel Administrativo.
 export function emailConviteEquipe({ nomeDestinatario, codigo, linkVerificarCodigo }: EmailCodigoAcessoParams) {
   const subject = 'Seu acesso ao Painel Administrativo — Opção Contábil'

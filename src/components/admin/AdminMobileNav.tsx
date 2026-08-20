@@ -16,6 +16,7 @@ export default function AdminMobileNav({
   navLinks,
   usuarioNome,
   usuarioEmail,
+  extra,
 }: {
   logo: StaticImageData
   titulo: string
@@ -23,6 +24,7 @@ export default function AdminMobileNav({
   navLinks: SidebarLink[]
   usuarioNome: string
   usuarioEmail?: string | null
+  extra?: React.ReactNode
 }) {
   const [aberto, setAberto] = useState(false)
 
@@ -71,6 +73,8 @@ export default function AdminMobileNav({
                 {subtitulo}
               </p>
             )}
+
+            {extra}
 
             <div className="mt-6 border-t border-white/10" />
 
