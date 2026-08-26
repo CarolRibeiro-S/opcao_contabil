@@ -232,13 +232,51 @@ export async function POST(request: Request) {
       },
     })
 
-    if (conviteError || !convite.user || !convite.properties?.email_otp) {
+    if (conviteError) {
+      // Confirmado com log real da Vercel (caso E M Rodrigues/Calebe):
+      // generateLink({type:'invite'}) devolve o usuário existente em
+      // silêncio só quando a conta ainda está NÃO confirmada (nunca
+      // completou o cadastro) — testamos exatamente esse caso antes e
+      // funcionou. Pra uma conta já CONFIRMADA (já definiu senha e usa o
+      // portal), ele lança AuthApiError 422 "email_exists" aqui, antes
+      // mesmo de chegar no profiles.insert() — precisa da mesma oferta de
+      // vínculo que já existe pro 23505 mais abaixo (que só dispara
+      // quando o generateLink NÃO erra).
+      if (conviteError.status === 422 || (conviteError as { code?: string }).code === 'email_exists') {
+        const { data: contaExistente } = await supabaseAdmin
+          .from('profiles')
+          .select('nome')
+          .eq('email', cliente.email)
+          .maybeSingle()
+
+        return NextResponse.json(
+          {
+            error: 'Já existe uma conta com esse e-mail.',
+            jaExisteConta: true,
+            contaExistente: { nome: contaExistente?.nome ?? null },
+          },
+          { status: 409 }
+        )
+      }
+
       console.error('[api/clientes/convidar] Erro ao chamar generateLink (invite):', conviteError)
 
       return NextResponse.json(
         {
           error: 'Não foi possível enviar o convite. Tente novamente.',
-          detalhes: conviteError?.message ?? 'generateLink não retornou usuário nem código.',
+          detalhes: conviteError.message,
+        },
+        { status: 500 }
+      )
+    }
+
+    if (!convite.user || !convite.properties?.email_otp) {
+      console.error('[api/clientes/convidar] generateLink (invite) não retornou usuário nem código.')
+
+      return NextResponse.json(
+        {
+          error: 'Não foi possível enviar o convite. Tente novamente.',
+          detalhes: 'generateLink não retornou usuário nem código.',
         },
         { status: 500 }
       )
@@ -252,12 +290,11 @@ export async function POST(request: Request) {
     })
 
     if (profileError) {
-      // Testado direto contra o Supabase Auth: generateLink({type:'invite'})
-      // NÃO falha pra e-mail que já tem conta — ele devolve o MESMO usuário
-      // existente de novo, sem erro nenhum. É só aqui, no insert de
-      // profiles (chave primária = auth user id), que a colisão realmente
-      // aparece — código 23505 (unique_violation). Antes disso rodava uma
-      // checagem no erro do generateLink que nunca disparava de verdade.
+      // Caso a conta exista mas o generateLink acima NÃO tenha errado
+      // (ex: conta ainda não confirmada — ver comentário no bloco de
+      // conviteError acima) a colisão só aparece aqui, no insert de
+      // profiles (chave primária = auth user id) — código 23505
+      // (unique_violation).
       if (profileError.code === '23505') {
         // Provavelmente outra empresa do mesmo dono, já convidada antes —
         // em vez de só rejeitar, busca essa conta e devolve pro front
