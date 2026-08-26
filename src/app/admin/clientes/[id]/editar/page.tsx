@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import EditarClienteForm from '@/components/admin/EditarClienteForm'
 
 export default async function EditarClientePage({
@@ -20,6 +21,20 @@ export default async function EditarClientePage({
 
   if (!cliente) {
     notFound()
+  }
+
+  // E-mail real da conta vinculada, pra avisar na tela quando divergir do
+  // campo de contato (clientes.email, editável) — ver ConvidarClientePortal
+  // e a rota de reenvio, que usam esse e-mail real, não o do formulário.
+  let emailContaVinculada: string | null = null
+  if (cliente.profile_id) {
+    const supabaseAdmin = createAdminClient()
+    const { data: contaVinculada } = await supabaseAdmin
+      .from('profiles')
+      .select('email')
+      .eq('id', cliente.profile_id)
+      .maybeSingle()
+    emailContaVinculada = contaVinculada?.email ?? null
   }
 
   const { data: profissionais } = await supabase
@@ -47,6 +62,7 @@ export default async function EditarClientePage({
       cliente={cliente}
       profissionaisIniciais={(profissionais ?? []).map((profissional) => profissional.nome)}
       documentosIniciais={documentosComUrl}
+      emailContaVinculada={emailContaVinculada}
     />
   )
 }

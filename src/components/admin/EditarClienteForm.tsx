@@ -55,10 +55,12 @@ export default function EditarClienteForm({
   cliente,
   profissionaisIniciais,
   documentosIniciais,
+  emailContaVinculada,
 }: {
   cliente: Cliente
   profissionaisIniciais: string[]
   documentosIniciais: Documento[]
+  emailContaVinculada?: string | null
 }) {
   const router = useRouter()
   const supabase = createClient()
@@ -395,6 +397,13 @@ export default function EditarClienteForm({
               onChange={(e) => setEmail(e.target.value)}
               className={inputClasses}
             />
+            {emailContaVinculada && email !== emailContaVinculada && (
+              <p className="mt-1.5 text-xs text-amber-700">
+                O e-mail de contato é diferente do e-mail de acesso ao portal:{' '}
+                <span className="font-semibold">{emailContaVinculada}</span>. Reenviar convite usa o e-mail de
+                acesso — esse campo aqui é só o contato exibido no cadastro.
+              </p>
+            )}
           </div>
 
           <div>

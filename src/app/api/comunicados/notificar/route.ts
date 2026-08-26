@@ -14,9 +14,23 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: Request) {
   const supabaseAuth = await createClient()
 
-  const {
+  let {
     data: { user },
   } = await supabaseAuth.auth.getUser()
+
+  // Sem cookie (chamada do app mobile, não do navegador): tenta validar via
+  // Authorization: Bearer <access_token> do Supabase Auth. O client SSR só
+  // olha cookies por padrão, então esse fallback é o que permite o app
+  // reaproveitar esta rota em vez de duplicar a lógica de e-mail.
+  if (!user) {
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+
+    if (token) {
+      const { data } = await supabaseAuth.auth.getUser(token)
+      user = data.user
+    }
+  }
 
   if (!user) {
     return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })

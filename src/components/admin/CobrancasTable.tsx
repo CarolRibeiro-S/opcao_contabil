@@ -57,6 +57,9 @@ function formatarValor(valor: number | null) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+const inputClasses =
+  'rounded-[3px] border border-rule bg-white px-3 py-2 text-sm text-charcoal outline-none transition-colors duration-200 focus:border-lime'
+
 const CORES_PONTO: Record<'verde' | 'ambar' | 'vermelho' | 'cinza', string> = {
   verde: 'bg-success',
   ambar: 'bg-amber-500',
@@ -134,18 +137,31 @@ export default function CobrancasTable({ cobrancas }: { cobrancas: Cobranca[] })
   const router = useRouter()
   const supabase = createClient()
 
+  const [busca, setBusca] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState('')
   const [somenteAguardandoBoleto, setSomenteAguardandoBoleto] = useState(false)
   const [somenteNaoEntregues, setSomenteNaoEntregues] = useState(false)
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
   const [processandoLote, setProcessandoLote] = useState(false)
 
-  const visiveis = useMemo(
-    () =>
-      cobrancas
-        .filter((cobranca) => !somenteAguardandoBoleto || !cobranca.boleto_caminho_arquivo)
-        .filter((cobranca) => !somenteNaoEntregues || !!cobranca.falhaEntrega),
-    [cobrancas, somenteAguardandoBoleto, somenteNaoEntregues]
-  )
+  const visiveis = useMemo(() => {
+    const termo = busca.trim().toLowerCase()
+
+    return cobrancas
+      .filter((cobranca) => !termo || (cobranca.clientes?.nome_empresa ?? '').toLowerCase().includes(termo))
+      .filter((cobranca) => !filtroStatus || cobranca.status === filtroStatus)
+      .filter((cobranca) => !somenteAguardandoBoleto || !cobranca.boleto_caminho_arquivo)
+      .filter((cobranca) => !somenteNaoEntregues || !!cobranca.falhaEntrega)
+  }, [cobrancas, busca, filtroStatus, somenteAguardandoBoleto, somenteNaoEntregues])
+
+  const temFiltroAtivo = !!(busca || filtroStatus || somenteAguardandoBoleto || somenteNaoEntregues)
+
+  function limparFiltros() {
+    setBusca('')
+    setFiltroStatus('')
+    setSomenteAguardandoBoleto(false)
+    setSomenteNaoEntregues(false)
+  }
 
   const totalAguardando = useMemo(() => cobrancas.filter((cobranca) => !cobranca.boleto_caminho_arquivo).length, [cobrancas])
   const totalNaoEntregues = useMemo(() => cobrancas.filter((cobranca) => !!cobranca.falhaEntrega).length, [cobrancas])
@@ -154,7 +170,7 @@ export default function CobrancasTable({ cobrancas }: { cobrancas: Cobranca[] })
   // quando os FILTROS mudam, calculado direto durante o render — evita
   // marcar em lote sobre linhas que ficaram escondidas sem o admin notar
   // (mesmo padrão já usado em ComunicadosTable.tsx pra resetar paginação).
-  const filtroChave = `${somenteAguardandoBoleto}|${somenteNaoEntregues}`
+  const filtroChave = `${busca}|${filtroStatus}|${somenteAguardandoBoleto}|${somenteNaoEntregues}`
   const [ultimaFiltroChave, setUltimaFiltroChave] = useState(filtroChave)
   if (filtroChave !== ultimaFiltroChave) {
     setUltimaFiltroChave(filtroChave)
@@ -215,7 +231,27 @@ export default function CobrancasTable({ cobrancas }: { cobrancas: Cobranca[] })
 
   return (
     <div>
-      <div className="mb-2 flex flex-wrap items-center gap-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2.5">
+        <input
+          type="search"
+          placeholder="Buscar por cliente..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          className={`${inputClasses} w-full max-w-xs`}
+        />
+
+        <select
+          value={filtroStatus}
+          onChange={(e) => setFiltroStatus(e.target.value)}
+          className={inputClasses}
+          aria-label="Filtrar por status"
+        >
+          <option value="">Todos os status</option>
+          <option value="em_aberto">Em Aberto</option>
+          <option value="pago">Pago</option>
+          <option value="atrasado">Atrasado</option>
+        </select>
+
         <button
           type="button"
           onClick={() => setSomenteAguardandoBoleto((atual) => !atual)}
@@ -239,6 +275,20 @@ export default function CobrancasTable({ cobrancas }: { cobrancas: Cobranca[] })
         >
           Só não entregues {totalNaoEntregues > 0 && `(${totalNaoEntregues})`}
         </button>
+
+        {temFiltroAtivo && (
+          <button
+            type="button"
+            onClick={limparFiltros}
+            className="text-xs font-semibold text-navy-soft underline decoration-dotted underline-offset-2 transition-colors duration-200 hover:text-navy"
+          >
+            Limpar filtros
+          </button>
+        )}
+
+        <span className="ml-auto text-xs text-navy-soft">
+          {visiveis.length} de {cobrancas.length} honorário(s)
+        </span>
       </div>
 
       <p className="mb-5 text-xs text-navy-soft/80">
@@ -278,7 +328,7 @@ export default function CobrancasTable({ cobrancas }: { cobrancas: Cobranca[] })
       )}
 
       {visiveis.length === 0 ? (
-        <p className="text-sm text-navy-soft">Nenhum honorário encontrado com esse filtro.</p>
+        <p className="text-sm text-navy-soft">Nenhum honorário encontrado com esses filtros.</p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-rule bg-white">
           <div className="overflow-x-auto">

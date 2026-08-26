@@ -127,9 +127,36 @@ export async function POST(request: Request) {
   // Supabase Auth pra usuário já existente é generateLink({type:'recovery'}).
   if (cliente.profile_id) {
     try {
+      // cliente.email é um campo editável em EditarClienteForm e pode
+      // divergir do e-mail real da conta (ex: admin corrige o contato
+      // depois do convite original). auth.users.email — acessado aqui via
+      // profiles.email, que é gravado uma vez no convite e nunca mais
+      // muda — é a fonte de verdade de quem realmente loga. Usar
+      // cliente.email direto faz generateLink(recovery) devolver
+      // "user_not_found" pra qualquer conta cujo e-mail já divergiu.
+      const { data: contaVinculada, error: contaVinculadaError } = await supabaseAdmin
+        .from('profiles')
+        .select('email')
+        .eq('id', cliente.profile_id)
+        .maybeSingle()
+
+      if (contaVinculadaError || !contaVinculada?.email) {
+        console.error('[api/clientes/convidar] Conta vinculada não encontrada:', contaVinculadaError)
+
+        return NextResponse.json(
+          {
+            error: 'Não encontrei a conta de acesso vinculada a este cliente. Verifique o cadastro.',
+            detalhes: contaVinculadaError?.message ?? 'profiles.email vazio pra esse profile_id.',
+          },
+          { status: 404 }
+        )
+      }
+
+      const emailConta = contaVinculada.email
+
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
-        email: cliente.email,
+        email: emailConta,
       })
 
       if (linkError || !linkData?.properties?.email_otp) {
@@ -148,12 +175,12 @@ export async function POST(request: Request) {
       const { subject, html } = emailReenvioConvite({
         nomeDestinatario: cliente.nome_empresa,
         codigo: linkData.properties.email_otp,
-        linkVerificarCodigo: linkVerificarCodigo(cliente.email, 'recovery'),
+        linkVerificarCodigo: linkVerificarCodigo(emailConta, 'recovery'),
       })
 
       const { error: emailError } = await resend.emails.send({
         from: 'naoresponda@opcaocontabilbsb.com.br',
-        to: cliente.email,
+        to: emailConta,
         subject,
         html,
       })
