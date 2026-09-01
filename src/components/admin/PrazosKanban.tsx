@@ -19,6 +19,9 @@ type Prazo = {
 
 const BUCKET_COMPROVANTES = 'documentos-clientes'
 
+const inputClasses =
+  'rounded-[3px] border border-rule bg-white px-3 py-2 text-sm text-charcoal outline-none transition-colors duration-200 focus:border-lime'
+
 const MESES = [
   'Janeiro',
   'Fevereiro',
@@ -145,16 +148,46 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
     [prazos, chaveMesFiltro]
   )
 
+  const [busca, setBusca] = useState('')
+  const [filtroTipo, setFiltroTipo] = useState('')
+
+  // Lista de tipos vem do conjunto COMPLETO de prazos (não só do mês
+  // filtrado) — assim o dropdown não muda de opções conforme se navega
+  // entre meses, e qualquer obrigação nova cadastrada em regras_obrigacoes
+  // aparece aqui sozinha, sem precisar fixar uma lista no código.
+  const tiposDisponiveis = useMemo(() => {
+    const nomes = new Set<string>()
+    for (const prazo of prazos) {
+      if (prazo.obrigacoes_acessorias?.nome) nomes.add(prazo.obrigacoes_acessorias.nome)
+    }
+    return [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  }, [prazos])
+
+  const prazosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase()
+    return prazosDoMes
+      .filter((prazo) => !termo || (prazo.clientes?.nome_empresa ?? '').toLowerCase().includes(termo))
+      .filter((prazo) => !filtroTipo || prazo.obrigacoes_acessorias?.nome === filtroTipo)
+  }, [prazosDoMes, busca, filtroTipo])
+
+  const temFiltroTextoOuTipo = !!(busca || filtroTipo)
+
+  function limparFiltrosTextoETipo() {
+    setBusca('')
+    setFiltroTipo('')
+  }
+
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
   const [processandoLote, setProcessandoLote] = useState(false)
 
   // "Você pode não precisar de um Efeito" (react.dev): limpa a seleção
-  // quando o mês muda, calculado direto durante o render — mesmo padrão já
-  // usado em CobrancasTable.tsx pra não deixar seleção "presa" em cards que
-  // saíram de vista.
-  const [ultimaChaveMesFiltro, setUltimaChaveMesFiltro] = useState(chaveMesFiltro)
-  if (chaveMesFiltro !== ultimaChaveMesFiltro) {
-    setUltimaChaveMesFiltro(chaveMesFiltro)
+  // quando mês, busca ou tipo mudam, calculado direto durante o render —
+  // mesmo padrão já usado em CobrancasTable.tsx pra não deixar seleção
+  // "presa" em cards que saíram de vista.
+  const filtroChave = `${chaveMesFiltro}|${busca}|${filtroTipo}`
+  const [ultimoFiltroChave, setUltimoFiltroChave] = useState(filtroChave)
+  if (filtroChave !== ultimoFiltroChave) {
+    setUltimoFiltroChave(filtroChave)
     if (selecionados.size > 0) setSelecionados(new Set())
   }
 
@@ -308,6 +341,44 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
         </button>
       </div>
 
+      <div className="mb-5 flex flex-wrap items-center gap-2.5">
+        <input
+          type="search"
+          placeholder="Buscar por cliente..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          className={`${inputClasses} w-full max-w-xs`}
+        />
+
+        <select
+          value={filtroTipo}
+          onChange={(e) => setFiltroTipo(e.target.value)}
+          className={inputClasses}
+          aria-label="Filtrar por tipo de obrigação"
+        >
+          <option value="">Todos os tipos</option>
+          {tiposDisponiveis.map((tipo) => (
+            <option key={tipo} value={tipo}>
+              {tipo}
+            </option>
+          ))}
+        </select>
+
+        {temFiltroTextoOuTipo && (
+          <button
+            type="button"
+            onClick={limparFiltrosTextoETipo}
+            className="text-xs font-semibold text-navy-soft underline decoration-dotted underline-offset-2 transition-colors duration-200 hover:text-navy"
+          >
+            Limpar filtros
+          </button>
+        )}
+
+        <span className="ml-auto text-xs text-navy-soft">
+          {prazosFiltrados.length} de {prazosDoMes.length} prazo(s) do mês
+        </span>
+      </div>
+
       {selecionados.size > 0 && (
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-lime/50 bg-lime/10 px-4 py-3">
           <p className="text-sm font-medium text-navy">{selecionados.size} selecionado{selecionados.size > 1 ? 's' : ''}</p>
@@ -333,7 +404,7 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
 
       <div className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-3 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
         {COLUNAS.map((coluna, colunaIndex) => {
-          const prazosDaColuna = prazosDoMes.filter((prazo) => prazo.status === coluna.status)
+          const prazosDaColuna = prazosFiltrados.filter((prazo) => prazo.status === coluna.status)
           const todosColunaSelecionados =
             prazosDaColuna.length > 0 && prazosDaColuna.every((prazo) => selecionados.has(prazo.id))
           const algunsColunaSelecionados = prazosDaColuna.some((prazo) => selecionados.has(prazo.id))
