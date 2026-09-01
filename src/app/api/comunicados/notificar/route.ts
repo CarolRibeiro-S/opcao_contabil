@@ -80,8 +80,14 @@ export async function POST(request: Request) {
 
   // Quem pediu a notificação precisa ser ou o admin dono da mensagem, ou o
   // próprio cliente da thread — nunca outro cliente lendo o comunicado de
-  // terceiros só por saber o id.
-  const { data: profile } = await supabaseAuth.from('profiles').select('role').eq('id', user.id).single()
+  // terceiros só por saber o id. Usa supabaseAdmin (não supabaseAuth) pelo
+  // mesmo motivo do patch em /api/clientes/convidar: numa chamada via
+  // Bearer (sem cookie), supabaseAuth não carrega sessão nenhuma pras
+  // próprias queries dele, então um select nele aqui sempre voltaria vazio
+  // por causa da RLS — negando acesso até a um admin de verdade chamando
+  // pelo app (ex: depois de criar um comunicado novo pelo app e notificar o
+  // cliente). Sem mudança de comportamento pra quem já chamava via cookie.
+  const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single()
   const ehAdmin = profile?.role === 'admin'
   const ehDonoDaThread = cliente.profile_id === user.id
 

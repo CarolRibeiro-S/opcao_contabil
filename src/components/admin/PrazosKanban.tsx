@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { registrarHistoricoAtividade } from '@/lib/historicoAtividade'
 import AcoesPrazo from '@/components/admin/AcoesPrazo'
@@ -17,6 +18,37 @@ type Prazo = {
 }
 
 const BUCKET_COMPROVANTES = 'documentos-clientes'
+
+const MESES = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+]
+
+function mesAtualPadrao() {
+  const agora = new Date()
+  return { ano: agora.getFullYear(), mes: agora.getMonth() + 1 }
+}
+
+// ?mes=YYYY-MM na URL — dá pra compartilhar/voltar direto num mês
+// específico. Formato inválido ou ausente cai no mês atual.
+function parseMesParam(param: string | null): { ano: number; mes: number } {
+  if (param && /^\d{4}-\d{2}$/.test(param)) {
+    const [anoStr, mesStr] = param.split('-')
+    const mes = Number(mesStr)
+    if (mes >= 1 && mes <= 12) return { ano: Number(anoStr), mes }
+  }
+  return mesAtualPadrao()
+}
 
 function IconCheck({ className }: { className?: string }) {
   return (
@@ -79,6 +111,130 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
   const [prazos, setPrazos] = useState(prazosIniciais)
   const supabase = createClient()
 
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  // Fonte única de verdade é a URL, não um useState local — assim
+  // voltar/avançar no navegador entre meses já visitados funciona sem
+  // precisar sincronizar manualmente.
+  const { ano: anoFiltro, mes: mesFiltro } = parseMesParam(searchParams.get('mes'))
+  const chaveMesFiltro = `${anoFiltro}-${String(mesFiltro).padStart(2, '0')}`
+
+  function irParaMes(novoAno: number, novoMes: number) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('mes', `${novoAno}-${String(novoMes).padStart(2, '0')}`)
+    router.push(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
+  function mesAnterior() {
+    if (mesFiltro === 1) irParaMes(anoFiltro - 1, 12)
+    else irParaMes(anoFiltro, mesFiltro - 1)
+  }
+
+  function mesSeguinte() {
+    if (mesFiltro === 12) irParaMes(anoFiltro + 1, 1)
+    else irParaMes(anoFiltro, mesFiltro + 1)
+  }
+
+  // Vencimento é a data que importa aqui, não a competência — prazo sem
+  // data_vencimento nunca aparece em nenhum mês filtrado (mesmo caso raro
+  // de regra sem tipo_vencimento reconhecido em gerarPrazos.ts).
+  const prazosDoMes = useMemo(
+    () => prazos.filter((prazo) => prazo.data_vencimento?.slice(0, 7) === chaveMesFiltro),
+    [prazos, chaveMesFiltro]
+  )
+
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
+  const [processandoLote, setProcessandoLote] = useState(false)
+
+  // "Você pode não precisar de um Efeito" (react.dev): limpa a seleção
+  // quando o mês muda, calculado direto durante o render — mesmo padrão já
+  // usado em CobrancasTable.tsx pra não deixar seleção "presa" em cards que
+  // saíram de vista.
+  const [ultimaChaveMesFiltro, setUltimaChaveMesFiltro] = useState(chaveMesFiltro)
+  if (chaveMesFiltro !== ultimaChaveMesFiltro) {
+    setUltimaChaveMesFiltro(chaveMesFiltro)
+    if (selecionados.size > 0) setSelecionados(new Set())
+  }
+
+  function alternarUm(id: string) {
+    setSelecionados((atual) => {
+      const novo = new Set(atual)
+      if (novo.has(id)) novo.delete(id)
+      else novo.add(id)
+      return novo
+    })
+  }
+
+  // Seleção "todos" é por COLUNA (status), não global — faz mais sentido
+  // limpar um backlog de uma coluna de cada vez do que misturar Pendente
+  // com Vencido numa selecionada só.
+  function alternarTodosColuna(prazosDaColuna: Prazo[]) {
+    const todosSelecionados = prazosDaColuna.length > 0 && prazosDaColuna.every((prazo) => selecionados.has(prazo.id))
+    setSelecionados((atual) => {
+      const novo = new Set(atual)
+      for (const prazo of prazosDaColuna) {
+        if (todosSelecionados) novo.delete(prazo.id)
+        else novo.add(prazo.id)
+      }
+      return novo
+    })
+  }
+
+  const selecionadosArray = useMemo(() => prazos.filter((prazo) => selecionados.has(prazo.id)), [prazos, selecionados])
+
+  async function marcarSelecionadosComoEntregue() {
+    if (selecionadosArray.length === 0) return
+
+    const confirmado = window.confirm(
+      `Marcar ${selecionadosArray.length} prazo${selecionadosArray.length > 1 ? 's' : ''} como entregue${selecionadosArray.length > 1 ? 's' : ''}, sem comprovante anexado?`
+    )
+    if (!confirmado) return
+
+    setProcessandoLote(true)
+    const entregueEm = new Date().toISOString()
+
+    // Sequencial, não em lote concorrente — mesmo motivo já documentado em
+    // CobrancasTable.tsx: ação client-side sem limite de tempo de function
+    // serverless, e o volume aqui é sempre a seleção manual numa tela, não
+    // um processamento em massa por si só.
+    for (const prazo of selecionadosArray) {
+      const statusAnterior = prazo.status
+
+      setPrazos((atual) =>
+        atual.map((p) => (p.id === prazo.id ? { ...p, entregue_em: entregueEm, status: 'em_dia' } : p))
+      )
+
+      const { error } = await supabase
+        .from('prazos')
+        .update({ entregue_em: entregueEm, status: 'em_dia' })
+        .eq('id', prazo.id)
+
+      if (error) {
+        setPrazos((atual) =>
+          atual.map((p) =>
+            p.id === prazo.id ? { ...p, entregue_em: prazo.entregue_em, status: statusAnterior } : p
+          )
+        )
+        continue
+      }
+
+      const tituloAnterior = COLUNAS.find((coluna) => coluna.status === statusAnterior)?.titulo ?? statusAnterior
+
+      registrarHistoricoAtividade({
+        acao: 'moveu_prazo',
+        entidade: 'prazo',
+        entidadeId: prazo.id,
+        entidadeNome: `${prazo.obrigacoes_acessorias?.nome ?? 'Obrigação'} — ${prazo.clientes?.nome_empresa ?? 'Cliente'}`,
+        detalhes: `Marcado como entregue em lote (sem comprovante) — ${tituloAnterior} → Em Dia`,
+      })
+    }
+
+    setProcessandoLote(false)
+    setSelecionados(new Set())
+  }
+
   async function moverStatus(id: string, novoStatus: string) {
     const prazo = prazos.find((prazo) => prazo.id === id)
     const statusAnterior = prazo?.status
@@ -129,57 +285,129 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
   }
 
   return (
-    <div className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-3 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
-      {COLUNAS.map((coluna, colunaIndex) => {
-        const prazosDaColuna = prazos.filter((prazo) => prazo.status === coluna.status)
+    <div>
+      <div className="mb-5 flex items-center gap-2 sm:gap-3">
+        <button
+          type="button"
+          onClick={mesAnterior}
+          aria-label="Mês anterior"
+          className="rounded-[3px] border border-rule bg-white px-3 py-1.5 text-sm font-semibold text-navy-soft transition-colors duration-200 hover:text-navy"
+        >
+          ←
+        </button>
+        <h2 className="w-[170px] text-center font-display text-sm font-semibold text-navy sm:text-base">
+          {MESES[mesFiltro - 1]} {anoFiltro}
+        </h2>
+        <button
+          type="button"
+          onClick={mesSeguinte}
+          aria-label="Próximo mês"
+          className="rounded-[3px] border border-rule bg-white px-3 py-1.5 text-sm font-semibold text-navy-soft transition-colors duration-200 hover:text-navy"
+        >
+          →
+        </button>
+      </div>
 
-        return (
-          <div key={coluna.status} className="flex w-[82vw] shrink-0 snap-center flex-col sm:w-auto sm:shrink">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-sm font-semibold text-navy">{coluna.titulo}</h2>
-              <span className={`rounded-full px-2 py-0.5 font-mono text-[11px] ${coluna.corBadge}`}>
-                {prazosDaColuna.length}
-              </span>
-            </div>
+      {selecionados.size > 0 && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-lime/50 bg-lime/10 px-4 py-3">
+          <p className="text-sm font-medium text-navy">{selecionados.size} selecionado{selecionados.size > 1 ? 's' : ''}</p>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setSelecionados(new Set())}
+              className="text-xs font-semibold text-navy-soft underline decoration-dotted underline-offset-2 transition-colors duration-200 hover:text-navy"
+            >
+              Limpar seleção
+            </button>
+            <button
+              type="button"
+              onClick={marcarSelecionadosComoEntregue}
+              disabled={processandoLote}
+              className="rounded-[3px] bg-lime px-4 py-1.5 text-sm font-semibold text-navy transition-colors duration-200 hover:bg-lime-bright disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {processandoLote ? 'Marcando...' : `Marcar ${selecionados.size} como entregue${selecionados.size > 1 ? 's' : ''}`}
+            </button>
+          </div>
+        </div>
+      )}
 
-            <div className="flex flex-col gap-3">
-              {prazosDaColuna.length === 0 ? (
-                <p className="text-sm text-navy-soft/70">Nenhum prazo aqui.</p>
-              ) : (
-                prazosDaColuna.map((prazo) => (
-                  <div
-                    key={prazo.id}
-                    className={`rounded-lg border border-t-rule border-r-rule border-b-rule border-l-4 ${coluna.corBorda} bg-white p-4 shadow-sm`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-display text-sm font-semibold text-navy">
-                          {prazo.obrigacoes_acessorias?.nome ?? '—'}
-                        </p>
-                        <p className="mt-1 text-sm text-charcoal">{prazo.clientes?.nome_empresa ?? '—'}</p>
+      <div className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-3 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
+        {COLUNAS.map((coluna, colunaIndex) => {
+          const prazosDaColuna = prazosDoMes.filter((prazo) => prazo.status === coluna.status)
+          const todosColunaSelecionados =
+            prazosDaColuna.length > 0 && prazosDaColuna.every((prazo) => selecionados.has(prazo.id))
+          const algunsColunaSelecionados = prazosDaColuna.some((prazo) => selecionados.has(prazo.id))
+
+          return (
+            <div key={coluna.status} className="flex w-[82vw] shrink-0 snap-center flex-col sm:w-auto sm:shrink">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    ref={(el) => {
+                      if (el) el.indeterminate = algunsColunaSelecionados && !todosColunaSelecionados
+                    }}
+                    checked={todosColunaSelecionados}
+                    onChange={() => alternarTodosColuna(prazosDaColuna)}
+                    disabled={prazosDaColuna.length === 0}
+                    aria-label={`Selecionar todos os prazos de ${coluna.titulo}`}
+                    className="h-3.5 w-3.5 accent-lime disabled:opacity-30"
+                  />
+                  <h2 className="font-display text-sm font-semibold text-navy">{coluna.titulo}</h2>
+                </div>
+                <span className={`rounded-full px-2 py-0.5 font-mono text-[11px] ${coluna.corBadge}`}>
+                  {prazosDaColuna.length}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                {prazosDaColuna.length === 0 ? (
+                  <p className="text-sm text-navy-soft/70">Nenhum prazo aqui.</p>
+                ) : (
+                  prazosDaColuna.map((prazo) => (
+                    <div
+                      key={prazo.id}
+                      className={`rounded-lg border border-t-rule border-r-rule border-b-rule border-l-4 ${coluna.corBorda} p-4 shadow-sm ${
+                        selecionados.has(prazo.id) ? 'bg-lime/5' : 'bg-white'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex min-w-0 items-start gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selecionados.has(prazo.id)}
+                            onChange={() => alternarUm(prazo.id)}
+                            aria-label={`Selecionar ${prazo.obrigacoes_acessorias?.nome ?? 'prazo'} — ${prazo.clientes?.nome_empresa ?? 'cliente'}`}
+                            className="mt-1 h-3.5 w-3.5 shrink-0 accent-lime"
+                          />
+                          <div className="min-w-0">
+                            <p className="font-display text-sm font-semibold text-navy">
+                              {prazo.obrigacoes_acessorias?.nome ?? '—'}
+                            </p>
+                            <p className="mt-1 text-sm text-charcoal">{prazo.clientes?.nome_empresa ?? '—'}</p>
+                          </div>
+                        </div>
+                        <AcoesPrazo
+                          id={prazo.id}
+                          entidadeNome={`${prazo.obrigacoes_acessorias?.nome ?? 'Obrigação'} — ${prazo.clientes?.nome_empresa ?? 'Cliente'}`}
+                          comprovanteUrl={prazo.comprovante_url}
+                          onComprovanteAnexado={(comprovanteUrl, entregueEm) =>
+                            comprovanteAnexado(prazo.id, comprovanteUrl, entregueEm)
+                          }
+                          onComprovanteRemovido={() => comprovanteRemovido(prazo.id)}
+                        />
                       </div>
-                      <AcoesPrazo
-                        id={prazo.id}
-                        entidadeNome={`${prazo.obrigacoes_acessorias?.nome ?? 'Obrigação'} — ${prazo.clientes?.nome_empresa ?? 'Cliente'}`}
-                        comprovanteUrl={prazo.comprovante_url}
-                        onComprovanteAnexado={(comprovanteUrl, entregueEm) =>
-                          comprovanteAnexado(prazo.id, comprovanteUrl, entregueEm)
-                        }
-                        onComprovanteRemovido={() => comprovanteRemovido(prazo.id)}
-                      />
-                    </div>
-                    <p className="mt-2 font-mono text-[11px] text-navy-soft">
-                      Competência: {formatarCompetencia(prazo.competencia)}
-                    </p>
-                    <p className="font-mono text-[11px] text-navy-soft">
-                      Vencimento: {formatarData(prazo.data_vencimento)}
-                    </p>
+                      <p className="mt-2 font-mono text-[11px] text-navy-soft">
+                        Competência: {formatarCompetencia(prazo.competencia)}
+                      </p>
+                      <p className="font-mono text-[11px] text-navy-soft">
+                        Vencimento: {formatarData(prazo.data_vencimento)}
+                      </p>
 
-                    {prazo.entregue_em && (
-                      <div className="mt-2 flex items-center gap-1.5">
-                        <IconCheck className="h-3.5 w-3.5 shrink-0 text-success" />
-                        <p className="text-[11px] text-success">Entregue em {formatarDataHora(prazo.entregue_em)}</p>
-                        {prazo.comprovante_url && (
+                      {prazo.entregue_em && prazo.comprovante_url && (
+                        <div className="mt-2 flex items-center gap-1.5">
+                          <IconCheck className="h-3.5 w-3.5 shrink-0 text-success" />
+                          <p className="text-[11px] text-success">Entregue em {formatarDataHora(prazo.entregue_em)}</p>
                           <button
                             type="button"
                             onClick={() => verComprovante(prazo.comprovante_url!)}
@@ -187,37 +415,50 @@ export default function PrazosKanban({ prazos: prazosIniciais }: { prazos: Prazo
                           >
                             Ver comprovante
                           </button>
-                        )}
-                      </div>
-                    )}
+                        </div>
+                      )}
 
-                    <div className="mt-3 flex items-center justify-between border-t border-rule pt-2.5">
-                      <button
-                        type="button"
-                        onClick={() => moverStatus(prazo.id, COLUNAS[colunaIndex - 1].status)}
-                        disabled={colunaIndex === 0}
-                        aria-label={`Mover para ${COLUNAS[colunaIndex - 1]?.titulo ?? ''}`}
-                        className="text-sm font-semibold text-navy-soft transition-colors duration-200 hover:text-navy disabled:cursor-not-allowed disabled:opacity-30"
-                      >
-                        ←
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moverStatus(prazo.id, COLUNAS[colunaIndex + 1].status)}
-                        disabled={colunaIndex === COLUNAS.length - 1}
-                        aria-label={`Mover para ${COLUNAS[colunaIndex + 1]?.titulo ?? ''}`}
-                        className="text-sm font-semibold text-navy-soft transition-colors duration-200 hover:text-navy disabled:cursor-not-allowed disabled:opacity-30"
-                      >
-                        →
-                      </button>
+                      {/* Marcado em lote (sem arquivo) — indicador visualmente
+                          diferente do check verde acima, pra ficar claro que
+                          ninguém anexou comprovante de verdade pra esse
+                          prazo. */}
+                      {prazo.entregue_em && !prazo.comprovante_url && (
+                        <div className="mt-2 flex items-center gap-1.5">
+                          <span className="h-2 w-2 shrink-0 rounded-full bg-navy-soft/40" />
+                          <p className="text-[11px] text-navy-soft">
+                            Marcado como entregue em {formatarDataHora(prazo.entregue_em)} (sem comprovante)
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex items-center justify-between border-t border-rule pt-2.5">
+                        <button
+                          type="button"
+                          onClick={() => moverStatus(prazo.id, COLUNAS[colunaIndex - 1].status)}
+                          disabled={colunaIndex === 0}
+                          aria-label={`Mover para ${COLUNAS[colunaIndex - 1]?.titulo ?? ''}`}
+                          className="text-sm font-semibold text-navy-soft transition-colors duration-200 hover:text-navy disabled:cursor-not-allowed disabled:opacity-30"
+                        >
+                          ←
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moverStatus(prazo.id, COLUNAS[colunaIndex + 1].status)}
+                          disabled={colunaIndex === COLUNAS.length - 1}
+                          aria-label={`Mover para ${COLUNAS[colunaIndex + 1]?.titulo ?? ''}`}
+                          className="text-sm font-semibold text-navy-soft transition-colors duration-200 hover:text-navy disabled:cursor-not-allowed disabled:opacity-30"
+                        >
+                          →
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))
-              )}
+                  ))
+                )}
+              </div>
             </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }

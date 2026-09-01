@@ -57,7 +57,18 @@ export function determinarEnviosDoDia(hoje: Date): TipoEnvioSolicitacaoMensal[] 
   return envios
 }
 
-// Chave de competência (YYYY-MM) usada pra dedupe em envios_solicitacao_mensal.
+// Chave de competência (YYYY-MM) usada pra dedupe em envios_solicitacao_mensal
+// e pro texto do e-mail. É sempre o mês ANTERIOR ao mês de disparo — o cron
+// roda no início do mês corrente (dias 01/05) pedindo os documentos do mês
+// que acabou de fechar, não do mês corrente ainda em curso (ex: disparo em
+// 01/09 pede documentos "de 08"). O aviso extra (dia útil seguinte, quando
+// 01/05 cai em fim de semana/feriado) continua caindo dentro do mesmo mês
+// civil do disparo principal — nunca atravessa virada de mês em cenários
+// reais —, então usa essa mesma função sem precisar de caso especial e a
+// competência sai idêntica nos dois envios.
 export function competenciaDoMes(data: Date): string {
-  return `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, '0')}`
+  const totalMeses = data.getUTCFullYear() * 12 + data.getUTCMonth() - 1
+  const ano = Math.floor(totalMeses / 12)
+  const mes = (totalMeses % 12) + 1
+  return `${ano}-${String(mes).padStart(2, '0')}`
 }

@@ -14,13 +14,20 @@ export const TIPOS_PADRAO = [
   'Taxas',
   'Extrato do Simples Nacional',
   'Documentos da Empresa',
+  'Contra Cheque',
+  'Pró-Labore',
 ]
 
 // Tipos de documento informativo, sem data de vencimento (ex: extrato do
 // Simples Nacional, balanço, alteração contratual). Usado pra Etapa 2 não
 // exigir vencimento e pra Etapa 3 não listar "TIPO - VENCIMENTO" no e-mail
 // pra esses arquivos.
-export const TIPOS_SEM_VENCIMENTO = ['Extrato do Simples Nacional', 'Documentos da Empresa']
+export const TIPOS_SEM_VENCIMENTO = [
+  'Extrato do Simples Nacional',
+  'Documentos da Empresa',
+  'Contra Cheque',
+  'Pró-Labore',
+]
 
 // "PARCELA" (cobre "PARCELA" e "PARCELAMENTO" como substring) fica de fora
 // dessa lista e é checada à parte, com prioridade máxima, em detectarTipo —
@@ -60,7 +67,10 @@ const PALAVRAS_CHAVE_TIPO: { palavra: string; tipo: string }[] = [
   // remove espaço/hífen/acento e deixa tudo maiúsculo, então as três
   // grafias caem no mesmo "PROLABORE" comparado aqui. Uma entrada literal
   // com espaço nunca daria match (normalizado nunca tem espaço).
-  { palavra: 'PROLABORE', tipo: 'Documentos da Empresa' },
+  { palavra: 'PROLABORE', tipo: 'Pró-Labore' },
+  // Mesma lógica: "Contra Cheque", "CONTRACHEQUE" e "contra-cheque" caem
+  // todas em "CONTRACHEQUE" depois do normalizarTexto.
+  { palavra: 'CONTRACHEQUE', tipo: 'Contra Cheque' },
 ]
 
 export function normalizarTexto(texto: string) {

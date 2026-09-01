@@ -19,15 +19,41 @@ function linkVerificarCodigo(email: string, tipo: 'invite' | 'recovery') {
 export async function POST(request: Request) {
   const supabaseAuth = await createClient()
 
-  const {
+  let {
     data: { user },
   } = await supabaseAuth.auth.getUser()
+
+  // Sem cookie (chamada do app mobile, não do navegador): tenta validar via
+  // Authorization: Bearer <access_token> do Supabase Auth. Mesmo fallback já
+  // usado em /api/comunicados/notificar.
+  if (!user) {
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+
+    if (token) {
+      const { data } = await supabaseAuth.auth.getUser(token)
+      user = data.user
+    }
+  }
 
   if (!user) {
     return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })
   }
 
-  const { data: profile } = await supabaseAuth.from('profiles').select('role, nome').eq('id', user.id).single()
+  // supabaseAdmin precisa ser criado antes da checagem de role (subiu de
+  // mais abaixo pra cá): diferente de /api/comunicados/notificar, esta rota
+  // EXIGE role='admin' pra prosseguir, sem caminho alternativo. Numa
+  // chamada via Bearer (sem cookie), supabaseAuth não carrega sessão
+  // nenhuma pras próprias queries dele além da validação pontual do token
+  // acima — um select via supabaseAuth aqui sempre voltaria vazio por causa
+  // da RLS de profiles, negando acesso até a admins de verdade chamando
+  // pelo app. supabaseAdmin (service role, sem RLS) não muda nada pra quem
+  // já funcionava via cookie (mesma linha, mesmo resultado — só pula a
+  // checagem de RLS que o próprio dono do profile já passaria de qualquer
+  // jeito).
+  const supabaseAdmin = createAdminClient()
+
+  const { data: profile } = await supabaseAdmin.from('profiles').select('role, nome').eq('id', user.id).single()
 
   if (profile?.role !== 'admin') {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 })
@@ -40,8 +66,6 @@ export async function POST(request: Request) {
   }
 
   const clienteId = body.cliente_id
-
-  const supabaseAdmin = createAdminClient()
 
   const { data: cliente, error: clienteError } = await supabaseAdmin
     .from('clientes')

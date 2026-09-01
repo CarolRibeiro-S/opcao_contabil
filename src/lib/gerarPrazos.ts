@@ -122,13 +122,17 @@ export async function gerarPrazosAutomaticos(competenciaAlvo?: string): Promise<
     competenciaMensalAno = Number(anoStr)
     competenciaMensalMes = Number(mesStr)
   } else {
-    // Gera com antecedência: a competência tratada nesta rodada é a do mês
-    // seguinte ao atual, não a do mês corrente — dá tempo do prazo aparecer
-    // pro cliente/admin bem antes do vencimento real (que, por sua vez, cai
-    // no mês seguinte AO DA COMPETÊNCIA — ver calcularVencimentoMensal).
-    const deslocado = deslocarMes(anoAtual, mesAtual, 1)
-    competenciaMensalAno = deslocado.ano
-    competenciaMensalMes = deslocado.mes
+    // Competência é sempre o mês ATUAL (o período que está fechando/já
+    // fechou), nunca o mês seguinte — o vencimento já cai no mês seguinte
+    // à competência por conta do meses_offset em calcularVencimentoMensal,
+    // então já existe antecedência natural até o vencimento real sem
+    // precisar deslocar a competência em si. Antes deslocava +1 mês aqui
+    // TAMBÉM, compondo com o +1 do meses_offset e gerando prazos com
+    // competência um mês à frente do correto (ex: rodando em 08/2026,
+    // gerava competência 09/2026 + vencimento 10/2026 em vez de
+    // competência 08/2026 + vencimento 09/2026).
+    competenciaMensalAno = anoAtual
+    competenciaMensalMes = mesAtual
   }
 
   const competenciaMensal = `${competenciaMensalAno}-${String(competenciaMensalMes).padStart(2, '0')}-01`

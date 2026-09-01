@@ -13,6 +13,7 @@ import CampoDocumento from '@/components/shared/CampoDocumento'
 import CampoTelefone from '@/components/shared/CampoTelefone'
 import CampoMoeda from '@/components/shared/CampoMoeda'
 import ConvidarClientePortal from '@/components/admin/ConvidarClientePortal'
+import CorrigirEmailAcesso from '@/components/admin/CorrigirEmailAcesso'
 import { sanitizarNomeArquivo } from '@/lib/storage/sanitizarNomeArquivo'
 
 const inputClasses =
@@ -398,11 +399,11 @@ export default function EditarClienteForm({
               className={inputClasses}
             />
             {emailContaVinculada && email !== emailContaVinculada && (
-              <p className="mt-1.5 text-xs text-amber-700">
-                O e-mail de contato é diferente do e-mail de acesso ao portal:{' '}
-                <span className="font-semibold">{emailContaVinculada}</span>. Reenviar convite usa o e-mail de
-                acesso — esse campo aqui é só o contato exibido no cadastro.
-              </p>
+              <CorrigirEmailAcesso
+                clienteId={cliente.id}
+                emailAcessoAtual={emailContaVinculada}
+                onSucesso={() => router.refresh()}
+              />
             )}
           </div>
 
