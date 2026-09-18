@@ -27,6 +27,48 @@ function descreverFalha(evento: WebhookEventPayload): string {
   }
 }
 
+// As 4 tabelas que guardam resend_email_id + visualizado_pelo_cliente_em —
+// Portal e e-mail (aberto/clicado) alimentam o MESMO campo, valendo o que
+// acontecer primeiro. "as const" só pra manter o array de nomes de tabela
+// tipado, já que supabase-js não aceita string solta em .from() com tipos
+// gerados.
+const TABELAS_COM_RASTREIO_VISUALIZACAO = [
+  'cobrancas',
+  'documentos_clientes',
+  'comunicados',
+  'envios_solicitacao_mensal',
+] as const
+
+// email.opened/email.clicked não indicam falha nenhuma — só que o
+// destinatário abriu ou clicou no e-mail. Usa isso como sinal de "visto",
+// equivalente a abrir no Portal: procura o resend_email_id nas 4 tabelas
+// que guardam esse id, e se visualizado_pelo_cliente_em ainda estiver nulo
+// ali, marca now(). Um resend_email_id só pode existir em NO MÁXIMO uma
+// linha de uma das tabelas (cada envio de e-mail é único), então não tem
+// risco de marcar a coisa errada.
+async function marcarVisualizadoPorAberturaOuClique(
+  supabaseAdmin: ReturnType<typeof createAdminClient>,
+  emailId: string
+) {
+  for (const tabela of TABELAS_COM_RASTREIO_VISUALIZACAO) {
+    const { data, error } = await supabaseAdmin
+      .from(tabela)
+      .update({ visualizado_pelo_cliente_em: new Date().toISOString() })
+      .eq('resend_email_id', emailId)
+      .is('visualizado_pelo_cliente_em', null)
+      .select('id')
+
+    if (error) {
+      console.error(`[webhooks/resend] Falha ao marcar visualizado em ${tabela}:`, error)
+      continue
+    }
+
+    // resend_email_id é único por envio — achou e atualizou em UMA tabela,
+    // não precisa continuar procurando nas outras.
+    if (data && data.length > 0) return
+  }
+}
+
 // Recebe eventos da Resend sobre o que aconteceu DEPOIS que um e-mail foi
 // aceito pra envio — a resposta síncrona de resend.emails.send() só confirma
 // que a Resend recebeu o pedido, não que a entrega deu certo (foi
@@ -73,10 +115,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
+  const supabaseAdmin = createAdminClient()
+
+  // "Visto" via e-mail — mesmo sinal que a visualização no Portal, só que
+  // pela abertura ou clique do e-mail em si. Tratado ANTES do filtro de
+  // falhas abaixo (não é falha nenhuma) e retorna cedo — não passa pela
+  // gravação em email_eventos, que é só pra falha de entrega.
+  if (evento.type === 'email.opened' || evento.type === 'email.clicked') {
+    await marcarVisualizadoPorAberturaOuClique(supabaseAdmin, evento.data.email_id)
+    return NextResponse.json({ ok: true })
+  }
+
   // Só os 4 eventos que representam falha real de entrega — os demais
-  // (sent, delivered, opened, clicked, etc.) são ignorados aqui de
-  // propósito, sem erro: a Resend espera 200 pra qualquer evento recebido,
-  // mesmo os que a gente não usa.
+  // (sent, delivered, etc.) são ignorados aqui de propósito, sem erro: a
+  // Resend espera 200 pra qualquer evento recebido, mesmo os que a gente
+  // não usa.
   if (
     evento.type !== 'email.bounced' &&
     evento.type !== 'email.failed' &&
@@ -93,8 +146,6 @@ export async function POST(request: Request) {
   // a parte que fica pro Hederson enxergar sozinho, sem depender da Carol.
   // Falha aqui não derruba o resto do webhook: o aviso pessoal continua
   // tentando ser enviado mesmo que a gravação no banco falhe.
-  const supabaseAdmin = createAdminClient()
-
   const { error: insertError } = await supabaseAdmin.from('email_eventos').insert({
     resend_email_id: evento.data.email_id,
     tipo: evento.type.replace(/^email\./, ''),

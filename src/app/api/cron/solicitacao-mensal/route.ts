@@ -76,7 +76,7 @@ export async function GET(request: Request) {
         linkPortal,
       })
 
-      const { error: emailError } = await resend.emails.send({
+      const { data: emailData, error: emailError } = await resend.emails.send({
         from: 'naoresponda@opcaocontabilbsb.com.br',
         to: cliente.email,
         subject,
@@ -89,6 +89,7 @@ export async function GET(request: Request) {
         cliente_id: cliente.id,
         competencia,
         tipo,
+        resend_email_id: emailData?.id ?? null,
       })
 
       enviados += 1

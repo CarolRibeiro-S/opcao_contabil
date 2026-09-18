@@ -56,7 +56,7 @@ export default function EnvioMensalPage() {
     async function carregarClientes() {
       const { data } = await supabase
         .from('clientes')
-        .select('id, nome_empresa, apelido, email, cnpj_cpf')
+        .select('id, nome_empresa, apelido, apelidos_extra, email, cnpj_cpf')
         .eq('status', 'ativo')
         .order('nome_empresa', { ascending: true })
 

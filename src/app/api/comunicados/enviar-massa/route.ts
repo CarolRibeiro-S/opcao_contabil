@@ -146,6 +146,7 @@ export async function POST(request: Request) {
     // individual. Falha aqui não derruba o comunicado em si (que já foi
     // criado com sucesso), só fica registrada no console.
     const anexoDoCliente = anexoPorClienteId.get(clienteId)
+    let documentoId: string | null = null
     if (anexoDoCliente) {
       const { data: documento, error: documentoError } = await supabaseAdmin
         .from('documentos_clientes')
@@ -165,6 +166,7 @@ export async function POST(request: Request) {
           documentoError
         )
       } else {
+        documentoId = documento.id
         await supabaseAdmin.from('mensagens_comunicado').insert({
           comunicado_id: comunicadoCriado.id,
           autor_tipo: 'admin',
@@ -193,7 +195,7 @@ export async function POST(request: Request) {
       tipo,
     })
 
-    const { error: emailError } = await resend.emails.send({
+    const { data: emailData, error: emailError } = await resend.emails.send({
       from: 'naoresponda@opcaocontabilbsb.com.br',
       to: cliente.email,
       subject,
@@ -207,6 +209,17 @@ export async function POST(request: Request) {
         motivo: 'Comunicado salvo, mas o e-mail falhou ao enviar.',
       })
       continue
+    }
+
+    // Mesma lógica do envio individual (ver api/comunicados/notificar):
+    // resend_email_id alimenta o rastreio de "visto" via abertura/clique do
+    // e-mail, no comunicado e no documento anexado (se teve).
+    if (emailData?.id) {
+      await supabaseAdmin.from('comunicados').update({ resend_email_id: emailData.id }).eq('id', comunicadoCriado.id)
+
+      if (documentoId) {
+        await supabaseAdmin.from('documentos_clientes').update({ resend_email_id: emailData.id }).eq('id', documentoId)
+      }
     }
 
     emailsEnviados += 1

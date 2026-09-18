@@ -5,6 +5,7 @@ import {
   detectarClientePorCnpj,
   detectarClientePorNomeArquivo,
   detectarTipo,
+  extrairFrasesCandidatas,
   somenteDigitos,
   TIPOS_SEM_VENCIMENTO,
   type ArquivoRevisado,
@@ -36,6 +37,10 @@ export default function EnvioMensalArquivos({
   const [processando, setProcessando] = useState<Set<string>>(new Set())
   const [arrastando, setArrastando] = useState(false)
   const [erroExtracao, setErroExtracao] = useState('')
+  // IDs de arquivo que acabaram de ser corrigidos manualmente (de
+  // ambíguo/não identificado pra um cliente escolhido à mão) — só esses
+  // mostram o convite "salvar como apelido extra?" (Etapa 3).
+  const [prontoParaAprender, setProntoParaAprender] = useState<Set<string>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
 
   async function adicionarArquivos(lista: FileList | null) {
@@ -54,6 +59,7 @@ export default function EnvioMensalArquivos({
         origemDeteccao: deteccao.origemDeteccao as OrigemDeteccao,
         cnpjCompletoExtraido: null,
         cnpjRaizExtraido: null,
+        candidatosAmbiguos: deteccao.candidatosAmbiguos,
       }
     })
 
@@ -90,9 +96,11 @@ export default function EnvioMensalArquivos({
           const extraido = resultados[arquivo.id]
           if (extraido === undefined) return arquivo
 
-          if (!extraido) {
-            return arquivo.clienteId ? arquivo : { ...arquivo, origemDeteccao: 'manual' as OrigemDeteccao }
-          }
+          // Sem CNPJ extraído nenhum: mantém o que já tinha (inclusive
+          // 'ambiguo', se a detecção por nome achou 2+ clientes — perder
+          // esse estado aqui faria o aviso com a lista de candidatos sumir
+          // sem motivo, sem nenhum CNPJ ter de fato desempatado nada).
+          if (!extraido) return arquivo
 
           const clienteIdPorCnpj = detectarClientePorCnpj(
             extraido.cnpjCompleto,
@@ -101,11 +109,7 @@ export default function EnvioMensalArquivos({
           )
 
           const clienteId = clienteIdPorCnpj ?? arquivo.clienteId
-          const origemDeteccao: OrigemDeteccao = clienteIdPorCnpj
-            ? 'cnpj'
-            : arquivo.clienteId
-              ? arquivo.origemDeteccao
-              : 'manual'
+          const origemDeteccao: OrigemDeteccao = clienteIdPorCnpj ? 'cnpj' : arquivo.origemDeteccao
 
           return {
             ...arquivo,
@@ -148,6 +152,26 @@ export default function EnvioMensalArquivos({
     campo: 'clienteId' | 'tipo' | 'dataVencimento',
     valor: string
   ) {
+    // "Correção manual de verdade" — o admin escolheu um cliente pra um
+    // arquivo que a detecção automática NÃO tinha resolvido sozinha
+    // (ambíguo ou nunca identificado). Só nesse caso oferece salvar o
+    // padrão como apelido extra (Etapa 3) — trocar manualmente um arquivo
+    // que já estava certo (apelido/nome/médico/cnpj) não é uma correção,
+    // é só o admin mudando de ideia, e não ensina nada sobre um padrão
+    // que estava quebrado.
+    if (campo === 'clienteId') {
+      const arquivoAtual = arquivos.find((arquivo) => arquivo.id === id)
+      const eraAmbiguoOuManual =
+        arquivoAtual && (arquivoAtual.origemDeteccao === 'ambiguo' || arquivoAtual.origemDeteccao === 'manual')
+
+      setProntoParaAprender((atual) => {
+        const novo = new Set(atual)
+        if (eraAmbiguoOuManual && valor) novo.add(id)
+        else novo.delete(id)
+        return novo
+      })
+    }
+
     setArquivos((atual) =>
       atual.map((arquivo) =>
         arquivo.id === id
@@ -236,6 +260,14 @@ export default function EnvioMensalArquivos({
                     processando={processando.has(arquivo.id)}
                     onAtualizar={atualizarArquivo}
                     onRemover={removerArquivo}
+                    mostrarAprendizado={prontoParaAprender.has(arquivo.id)}
+                    onFecharAprendizado={() =>
+                      setProntoParaAprender((atual) => {
+                        const novo = new Set(atual)
+                        novo.delete(arquivo.id)
+                        return novo
+                      })
+                    }
                   />
                 ))}
               </div>
@@ -259,6 +291,14 @@ export default function EnvioMensalArquivos({
                     processando={processando.has(arquivo.id)}
                     onAtualizar={atualizarArquivo}
                     onRemover={removerArquivo}
+                    mostrarAprendizado={prontoParaAprender.has(arquivo.id)}
+                    onFecharAprendizado={() =>
+                      setProntoParaAprender((atual) => {
+                        const novo = new Set(atual)
+                        novo.delete(arquivo.id)
+                        return novo
+                      })
+                    }
                   />
                 ))}
               </div>
@@ -379,6 +419,14 @@ function Badge({ origem }: { origem: OrigemDeteccao }) {
     )
   }
 
+  if (origem === 'ambiguo') {
+    return (
+      <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-700">
+        Ambíguo
+      </span>
+    )
+  }
+
   return (
     <span className="shrink-0 rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
       Manual
@@ -393,6 +441,8 @@ function LinhaArquivo({
   processando,
   onAtualizar,
   onRemover,
+  mostrarAprendizado,
+  onFecharAprendizado,
 }: {
   arquivo: ArquivoRevisado
   clientes: ClienteOption[]
@@ -400,6 +450,8 @@ function LinhaArquivo({
   processando: boolean
   onAtualizar: (id: string, campo: 'clienteId' | 'tipo' | 'dataVencimento', valor: string) => void
   onRemover: (id: string) => void
+  mostrarAprendizado: boolean
+  onFecharAprendizado: () => void
 }) {
   // Só conta como divergência de seleção se JÁ havia uma detecção
   // automática (clienteIdDetectado não vazio) E a seleção atual foi pra um
@@ -409,7 +461,8 @@ function LinhaArquivo({
   const divergenciaSelecao =
     !!arquivo.clienteIdDetectado && !!arquivo.clienteId && arquivo.clienteIdDetectado !== arquivo.clienteId
   const divergenciaCnpj = cnpjDivergente(arquivo, clientes)
-  const temAviso = divergenciaSelecao || divergenciaCnpj
+  const ambiguo = arquivo.origemDeteccao === 'ambiguo' && !!arquivo.candidatosAmbiguos?.length
+  const temAviso = divergenciaSelecao || divergenciaCnpj || ambiguo
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -476,6 +529,13 @@ function LinhaArquivo({
         <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           <IconAlerta className="h-4 w-4 shrink-0" />
           <div className="flex flex-col gap-1">
+            {ambiguo && (
+              <p>
+                {arquivo.candidatosAmbiguos!.length} clientes possíveis:{' '}
+                <strong>{arquivo.candidatosAmbiguos!.map((c) => c.nomeEmpresa).join(', ')}</strong> — selecione
+                manualmente.
+              </p>
+            )}
             {divergenciaSelecao && (
               <p>
                 Este arquivo parece ser da empresa{' '}
@@ -492,6 +552,108 @@ function LinhaArquivo({
           </div>
         </div>
       )}
+
+      {mostrarAprendizado && arquivo.clienteId && (
+        <AprenderApelido
+          clienteId={arquivo.clienteId}
+          nomeCliente={nomeParaExibicao(arquivo.clienteId, clientes)}
+          nomeArquivo={arquivo.file.name}
+          onFechar={onFecharAprendizado}
+        />
+      )}
+    </div>
+  )
+}
+
+// Etapa 3 (aprender com a correção manual): oferece salvar o padrão que
+// levou o admin a escolher esse cliente como apelido extra — SEMPRE com
+// confirmação explícita ("Sim, salvar"), nunca sozinho, mesmo cuidado já
+// usado no vínculo de conta duplicada em ConvidarClientePortal.tsx. A
+// frase sugerida vem de extrairFrasesCandidatas (mesma extração usada na
+// tela de Sugestões de apelido), editável antes de confirmar.
+function AprenderApelido({
+  clienteId,
+  nomeCliente,
+  nomeArquivo,
+  onFechar,
+}: {
+  clienteId: string
+  nomeCliente: string
+  nomeArquivo: string
+  onFechar: () => void
+}) {
+  const sugestoes = extrairFrasesCandidatas(nomeArquivo)
+  const [texto, setTexto] = useState(sugestoes[0] ?? '')
+  const [loading, setLoading] = useState(false)
+  const [erro, setErro] = useState('')
+  const [salvo, setSalvo] = useState(false)
+
+  async function salvar() {
+    const frase = texto.trim()
+    if (!frase) {
+      setErro('Digite alguma coisa antes de salvar.')
+      return
+    }
+
+    setErro('')
+    setLoading(true)
+
+    const resposta = await fetch('/api/clientes/salvar-apelido-extra', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cliente_id: clienteId, frase }),
+    })
+
+    const dados = await resposta.json().catch(() => null)
+    setLoading(false)
+
+    if (!resposta.ok) {
+      setErro(dados?.error ?? 'Não foi possível salvar. Tente novamente.')
+      return
+    }
+
+    setSalvo(true)
+  }
+
+  if (salvo) {
+    return (
+      <p className="flex items-center gap-1.5 rounded-md border border-success-border bg-success-bg px-3 py-2 text-xs text-success">
+        Apelido extra salvo — da próxima vez, arquivos parecidos são reconhecidos sozinhos.
+      </p>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+      <p>
+        Salvar isso como apelido extra de <strong>{nomeCliente}</strong>, pra reconhecer sozinho da próxima vez?
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          aria-label="Texto do apelido extra a salvar"
+          className="rounded-[3px] border border-blue-300 bg-white px-2 py-1 text-xs text-charcoal outline-none focus:border-blue-500"
+        />
+        <button
+          type="button"
+          onClick={salvar}
+          disabled={loading}
+          className="font-semibold underline decoration-dotted underline-offset-2 hover:text-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading ? 'Salvando...' : 'Sim, salvar'}
+        </button>
+        <button
+          type="button"
+          onClick={onFechar}
+          disabled={loading}
+          className="underline decoration-dotted underline-offset-2 hover:text-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Não
+        </button>
+      </div>
+      {erro && <p className="text-red-600">{erro}</p>}
     </div>
   )
 }

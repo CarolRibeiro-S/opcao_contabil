@@ -35,6 +35,7 @@ type Cliente = {
   emite_notas_fiscais: boolean | null
   segmento: string | null
   responsavel: string | null
+  apelidos_extra: string | null
   email: string | null
   telefone: string | null
   honorario_valor_mensal: number | null
@@ -71,6 +72,7 @@ export default function EditarClienteForm({
     cliente.codigo_interno !== null ? String(cliente.codigo_interno) : ''
   )
   const [apelido, setApelido] = useState(cliente.apelido ?? '')
+  const [apelidosExtra, setApelidosExtra] = useState(cliente.apelidos_extra ?? '')
   const [cnpjCpf, setCnpjCpf] = useState(cliente.cnpj_cpf ?? '')
   const [tipo, setTipo] = useState<'pessoa_juridica' | 'mei'>(
     cliente.tipo === 'mei' ? 'mei' : 'pessoa_juridica'
@@ -109,6 +111,7 @@ export default function EditarClienteForm({
         nome_empresa: nomeEmpresa,
         codigo_interno: codigoInterno ? Number(codigoInterno) : null,
         apelido: apelido || null,
+        apelidos_extra: apelidosExtra || null,
         cnpj_cpf: cnpjCpf || null,
         tipo,
         regime_tributario: tipo === 'mei' ? null : regimeTributario || null,
@@ -258,6 +261,24 @@ export default function EditarClienteForm({
               className={inputClasses}
             />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="apelidosExtra" className={labelClasses}>
+            Variantes/abreviações extras (opcional)
+          </label>
+          <input
+            id="apelidosExtra"
+            type="text"
+            placeholder="Outros jeitos de reconhecer esse cliente nos arquivos, separados por vírgula. Ex: INST VASCULAR, IVB"
+            value={apelidosExtra}
+            onChange={(e) => setApelidosExtra(e.target.value)}
+            className={inputClasses}
+          />
+          <p className="mt-1.5 text-xs text-navy-soft/70">
+            Use quando o apelido principal não cobre todas as formas como o arquivo vem nomeado (ex: abreviação
+            diferente) — ajuda o Envio Mensal a reconhecer o cliente certo sem cair em seleção manual.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

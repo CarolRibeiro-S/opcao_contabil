@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
   const { data: mensagem, error: mensagemError } = await supabaseAdmin
     .from('mensagens_comunicado')
-    .select('id, comunicado_id, autor_tipo, autor_nome, mensagem')
+    .select('id, comunicado_id, autor_tipo, autor_nome, mensagem, documento_id')
     .eq('id', mensagemId)
     .single()
 
@@ -161,7 +161,7 @@ export async function POST(request: Request) {
         link: `${siteUrl}/portal/comunicados`,
       })
 
-      const { error: emailError } = await resend.emails.send({
+      const { data: emailData, error: emailError } = await resend.emails.send({
         from: 'naoresponda@opcaocontabilbsb.com.br',
         to: cliente.email,
         subject,
@@ -171,6 +171,23 @@ export async function POST(request: Request) {
       if (emailError) {
         console.error('[api/comunicados/notificar] Falha ao enviar e-mail pro cliente:', emailError)
         return NextResponse.json({ error: 'Falha ao enviar e-mail.', detalhes: emailError.message }, { status: 500 })
+      }
+
+      // resend_email_id é o que o webhook usa pra marcar
+      // visualizado_pelo_cliente_em quando o e-mail é aberto/clicado — o
+      // mesmo campo que a visualização no Portal já alimenta, valendo o que
+      // acontecer primeiro. Grava no comunicado e, se essa mensagem trouxe
+      // um documento anexado, no documento também (mesmo e-mail avisa dos
+      // dois).
+      if (emailData?.id) {
+        await supabaseAdmin.from('comunicados').update({ resend_email_id: emailData.id }).eq('id', comunicado.id)
+
+        if (mensagem.documento_id) {
+          await supabaseAdmin
+            .from('documentos_clientes')
+            .update({ resend_email_id: emailData.id })
+            .eq('id', mensagem.documento_id)
+        }
       }
     }
 

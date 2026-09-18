@@ -72,6 +72,12 @@ export default async function ClientesPage() {
               .map((cliente) => cliente.id)}
           />
           <Link
+            href="/admin/clientes/sugestoes-apelidos"
+            className="text-sm font-semibold text-navy-soft underline decoration-dotted underline-offset-2 transition-colors duration-200 hover:text-navy"
+          >
+            Sugestões de apelido
+          </Link>
+          <Link
             href="/admin/clientes/novo"
             className="inline-flex items-center gap-2 rounded-[3px] bg-lime px-4 py-2 text-sm font-semibold text-navy transition-colors duration-200 hover:bg-lime-bright"
           >
