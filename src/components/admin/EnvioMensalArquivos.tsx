@@ -1,6 +1,8 @@
 'use client'
 
 import { useRef, useState, type DragEvent } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { sanitizarNomeArquivo } from '@/lib/storage/sanitizarNomeArquivo'
 import {
   detectarClientePorCnpj,
   detectarClientePorNomeArquivo,
@@ -14,11 +16,14 @@ import {
   type ProfissionalOption,
 } from '@/lib/envioMensal'
 
+const BUCKET_DOCUMENTOS = 'documentos-clientes'
+
 function ehPdf(file: File) {
   return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
 }
 
 export default function EnvioMensalArquivos({
+  sessaoId,
   clientes,
   profissionais,
   tiposDisponiveis,
@@ -26,6 +31,7 @@ export default function EnvioMensalArquivos({
   onVoltar,
   onContinuar,
 }: {
+  sessaoId: string
   clientes: ClienteOption[]
   profissionais: ProfissionalOption[]
   tiposDisponiveis: string[]
@@ -42,6 +48,35 @@ export default function EnvioMensalArquivos({
   // mostram o convite "salvar como apelido extra?" (Etapa 3).
   const [prontoParaAprender, setProntoParaAprender] = useState<Set<string>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
+  const supabase = createClient()
+
+  // Sobe o arquivo pro Storage (prefixo temporário, isolado por sessaoId)
+  // assim que ele é selecionado — é esse caminho, não o File inteiro, que
+  // viaja na rede quando a Etapa 3 manda o lote pra api/envio-mensal.
+  // Separado da extração de PDF de propósito: upload e extração não
+  // dependem um do outro, podem rodar em paralelo.
+  async function uploadParaStorageTemp(id: string, file: File) {
+    const caminho = `envio-mensal-temp/${sessaoId}/${id}-${sanitizarNomeArquivo(file.name)}`
+
+    const { error } = await supabase.storage.from(BUCKET_DOCUMENTOS).upload(caminho, file, {
+      contentType: file.type || undefined,
+      upsert: true,
+    })
+
+    setArquivos((atual) =>
+      atual.map((arquivo) =>
+        arquivo.id === id
+          ? error
+            ? {
+                ...arquivo,
+                statusUploadTemp: 'erro',
+                erroUploadTemp: 'Não foi possível enviar ao Storage. Tente de novo.',
+              }
+            : { ...arquivo, statusUploadTemp: 'ok', caminhoStorageTemp: caminho }
+          : arquivo
+      )
+    )
+  }
 
   async function adicionarArquivos(lista: FileList | null) {
     if (!lista || lista.length === 0) return
@@ -52,6 +87,7 @@ export default function EnvioMensalArquivos({
       return {
         id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
         file,
+        nomeArquivo: file.name,
         clienteId: deteccao.clienteId,
         clienteIdDetectado: deteccao.clienteId,
         tipo: detectarTipo(file.name) ?? '',
@@ -60,10 +96,16 @@ export default function EnvioMensalArquivos({
         cnpjCompletoExtraido: null,
         cnpjRaizExtraido: null,
         candidatosAmbiguos: deteccao.candidatosAmbiguos,
+        caminhoStorageTemp: null,
+        statusUploadTemp: 'enviando',
       }
     })
 
     setArquivos((atual) => [...atual, ...novos])
+
+    for (const arquivo of novos) {
+      uploadParaStorageTemp(arquivo.id, arquivo.file)
+    }
 
     const novosPdfs = novos.filter((arquivo) => ehPdf(arquivo.file))
     if (novosPdfs.length === 0) return
@@ -144,7 +186,25 @@ export default function EnvioMensalArquivos({
   }
 
   function removerArquivo(id: string) {
-    setArquivos((atual) => atual.filter((arquivo) => arquivo.id !== id))
+    const arquivo = arquivos.find((item) => item.id === id)
+    setArquivos((atual) => atual.filter((item) => item.id !== id))
+
+    // Limpeza best-effort do temporário — se falhar, não é grave (o
+    // arquivo fica órfão no prefixo envio-mensal-temp, mas nunca é lido
+    // por ninguém já que esse id some da lista aqui).
+    if (arquivo?.caminhoStorageTemp) {
+      supabase.storage.from(BUCKET_DOCUMENTOS).remove([arquivo.caminhoStorageTemp])
+    }
+  }
+
+  function tentarUploadDeNovo(id: string) {
+    const arquivo = arquivos.find((item) => item.id === id)
+    if (!arquivo) return
+
+    setArquivos((atual) =>
+      atual.map((item) => (item.id === id ? { ...item, statusUploadTemp: 'enviando', erroUploadTemp: undefined } : item))
+    )
+    uploadParaStorageTemp(id, arquivo.file)
   }
 
   function atualizarArquivo(
@@ -197,9 +257,13 @@ export default function EnvioMensalArquivos({
   }
 
   const aindaProcessando = processando.size > 0
+  const aindaSubindoParaStorage = arquivos.some((arquivo) => arquivo.statusUploadTemp === 'enviando')
+  const algumUploadFalhou = arquivos.some((arquivo) => arquivo.statusUploadTemp === 'erro')
   const todosCompletos =
     arquivos.length > 0 &&
     !aindaProcessando &&
+    !aindaSubindoParaStorage &&
+    !algumUploadFalhou &&
     arquivos.every(
       (arquivo) =>
         arquivo.clienteId &&
@@ -260,6 +324,7 @@ export default function EnvioMensalArquivos({
                     processando={processando.has(arquivo.id)}
                     onAtualizar={atualizarArquivo}
                     onRemover={removerArquivo}
+                    onTentarUploadDeNovo={tentarUploadDeNovo}
                     mostrarAprendizado={prontoParaAprender.has(arquivo.id)}
                     onFecharAprendizado={() =>
                       setProntoParaAprender((atual) => {
@@ -291,6 +356,7 @@ export default function EnvioMensalArquivos({
                     processando={processando.has(arquivo.id)}
                     onAtualizar={atualizarArquivo}
                     onRemover={removerArquivo}
+                    onTentarUploadDeNovo={tentarUploadDeNovo}
                     mostrarAprendizado={prontoParaAprender.has(arquivo.id)}
                     onFecharAprendizado={() =>
                       setProntoParaAprender((atual) => {
@@ -323,10 +389,18 @@ export default function EnvioMensalArquivos({
         >
           Revisar e continuar
         </button>
+        {aindaSubindoParaStorage && (
+          <span className="text-xs text-navy-soft">Enviando arquivo(s) ao Storage...</span>
+        )}
+        {algumUploadFalhou && (
+          <span className="text-xs text-red-600">
+            Algum arquivo falhou ao enviar ao Storage — veja o aviso abaixo dele e tente de novo.
+          </span>
+        )}
         {aindaProcessando && (
           <span className="text-xs text-navy-soft">Lendo os PDFs...</span>
         )}
-        {!aindaProcessando && !todosCompletos && arquivos.length > 0 && (
+        {!aindaProcessando && !aindaSubindoParaStorage && !algumUploadFalhou && !todosCompletos && arquivos.length > 0 && (
           <span className="text-xs text-navy-soft">
             Defina cliente, tipo e vencimento de todos os arquivos para continuar.
           </span>
@@ -441,6 +515,7 @@ function LinhaArquivo({
   processando,
   onAtualizar,
   onRemover,
+  onTentarUploadDeNovo,
   mostrarAprendizado,
   onFecharAprendizado,
 }: {
@@ -450,6 +525,7 @@ function LinhaArquivo({
   processando: boolean
   onAtualizar: (id: string, campo: 'clienteId' | 'tipo' | 'dataVencimento', valor: string) => void
   onRemover: (id: string) => void
+  onTentarUploadDeNovo: (id: string) => void
   mostrarAprendizado: boolean
   onFecharAprendizado: () => void
 }) {
@@ -462,7 +538,8 @@ function LinhaArquivo({
     !!arquivo.clienteIdDetectado && !!arquivo.clienteId && arquivo.clienteIdDetectado !== arquivo.clienteId
   const divergenciaCnpj = cnpjDivergente(arquivo, clientes)
   const ambiguo = arquivo.origemDeteccao === 'ambiguo' && !!arquivo.candidatosAmbiguos?.length
-  const temAviso = divergenciaSelecao || divergenciaCnpj || ambiguo
+  const erroUpload = arquivo.statusUploadTemp === 'erro'
+  const temAviso = divergenciaSelecao || divergenciaCnpj || ambiguo || erroUpload
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -473,9 +550,22 @@ function LinhaArquivo({
       >
         <Badge origem={arquivo.origemDeteccao} />
 
-        <span className="min-w-0 flex-1 truncate text-sm text-charcoal" title={arquivo.file.name}>
-          {arquivo.file.name}
+        <span className="min-w-0 flex-1 truncate text-sm text-charcoal" title={arquivo.nomeArquivo}>
+          {arquivo.nomeArquivo}
         </span>
+
+        {arquivo.statusUploadTemp === 'enviando' && (
+          <span className="shrink-0 text-xs text-navy-soft">subindo...</span>
+        )}
+        {erroUpload && (
+          <button
+            type="button"
+            onClick={() => onTentarUploadDeNovo(arquivo.id)}
+            className="shrink-0 text-xs font-semibold text-red-600 underline decoration-dotted underline-offset-2 hover:text-red-700"
+          >
+            tentar de novo
+          </button>
+        )}
 
         {processando && <span className="shrink-0 text-xs text-navy-soft">lendo...</span>}
 
@@ -529,6 +619,7 @@ function LinhaArquivo({
         <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           <IconAlerta className="h-4 w-4 shrink-0" />
           <div className="flex flex-col gap-1">
+            {erroUpload && <p>{arquivo.erroUploadTemp ?? 'Não foi possível enviar ao Storage.'}</p>}
             {ambiguo && (
               <p>
                 {arquivo.candidatosAmbiguos!.length} clientes possíveis:{' '}
@@ -557,7 +648,7 @@ function LinhaArquivo({
         <AprenderApelido
           clienteId={arquivo.clienteId}
           nomeCliente={nomeParaExibicao(arquivo.clienteId, clientes)}
-          nomeArquivo={arquivo.file.name}
+          nomeArquivo={arquivo.nomeArquivo}
           onFechar={onFecharAprendizado}
         />
       )}

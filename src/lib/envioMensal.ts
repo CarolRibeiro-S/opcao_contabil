@@ -457,9 +457,20 @@ export type ImpostoVencimento = {
 
 export type OrigemDeteccao = 'cnpj' | 'apelido' | 'nome' | 'medico' | 'manual' | 'ambiguo'
 
+// Status do upload pro Storage temporário (envio-mensal-temp/...) — ver
+// EnvioMensalArquivos.tsx. Enquanto não chega a 'ok', o arquivo não pode
+// seguir pra Etapa 3: é essa garantia que substitui mandar o File inteiro
+// no POST final (o que estourava o limite de 4,5 MB de payload da
+// Vercel — ver investigação do bug "Falha de rede ou tempo esgotado").
+export type StatusUploadTemp = 'enviando' | 'ok' | 'erro'
+
 export type ArquivoRevisado = {
   id: string
+  // Ainda guardado durante a Etapa 2 (nome, tamanho, e o que a extração de
+  // PDF precisa) — mas nunca mais é o que viaja na rede na Etapa 3. A
+  // Etapa 3 manda só caminhoStorageTemp (texto), nunca file.
   file: File
+  nomeArquivo: string
   clienteId: string
   tipo: string
   dataVencimento: string
@@ -478,4 +489,11 @@ export type ArquivoRevisado = {
   // resolverCandidatos) — lista os clientes que bateram no arquivo, pro
   // aviso na tela mostrar as opções em vez de só "não identificado".
   candidatosAmbiguos?: CandidatoAmbiguo[]
+  // Caminho no bucket documentos-clientes, prefixo envio-mensal-temp/ —
+  // null enquanto o upload (disparado assim que o arquivo é selecionado)
+  // ainda não terminou. api/envio-mensal/route.ts busca o arquivo por
+  // esse caminho, em vez de receber os bytes na requisição.
+  caminhoStorageTemp: string | null
+  statusUploadTemp: StatusUploadTemp
+  erroUploadTemp?: string
 }

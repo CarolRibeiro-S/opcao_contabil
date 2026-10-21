@@ -60,40 +60,75 @@ export default function EnvioMensalConfirmacao({
   const totalClientes = gruposPorCliente.size
   const totalArquivos = arquivosRevisados.length
 
-  async function enviarLote(entradasLote: [string, ArquivoRevisado[]][]) {
-    const formData = new FormData()
-    formData.append('competencia', competencia)
-
-    const gruposLote = entradasLote.map(([clienteId, arquivos]) => ({
+  // Monta um JSON pequeno (caminhos do Storage + metadados) em vez de
+  // mandar os arquivos binários — é essa troca que resolve o bug "Falha de
+  // rede ou tempo esgotado": o payload agora nunca chega perto do limite
+  // de 4,5 MB da Vercel, porque os bytes de verdade já estão no Storage
+  // desde a Etapa 2 (ver uploadParaStorageTemp em EnvioMensalArquivos.tsx).
+  // api/envio-mensal/route.ts busca cada arquivo pelo caminho recebido.
+  function montarGruposLote(entradasLote: [string, ArquivoRevisado[]][]) {
+    return entradasLote.map(([clienteId, arquivos]) => ({
       clienteId,
       arquivos: arquivos.map((arquivo) => ({
         chave: arquivo.id,
-        nomeArquivo: arquivo.file.name,
+        nomeArquivo: arquivo.nomeArquivo,
         tipo: arquivo.tipo,
         dataVencimento: arquivo.dataVencimento,
+        caminhoStorageTemp: arquivo.caminhoStorageTemp,
       })),
     }))
+  }
 
-    formData.append('grupos', JSON.stringify(gruposLote))
+  function falhaParaTodos(entradasLote: [string, ArquivoRevisado[]][], motivo: string): Falha[] {
+    return entradasLote.map(([clienteId]) => ({ clienteId, nomeCliente: nomeCliente(clienteId), motivo }))
+  }
 
-    for (const [, arquivos] of entradasLote) {
-      for (const arquivo of arquivos) {
-        formData.append(arquivo.id, arquivo.file)
-      }
-    }
+  // Cada etapa (chamar o servidor, ler a resposta, checar o status) tem seu
+  // próprio tratamento de erro específico — antes, qualquer uma das três
+  // falhando caía no mesmo catch genérico lá em handleEnviar, e todo mundo
+  // via "Falha de rede ou tempo esgotado" mesmo quando a causa real era
+  // outra (ex: resposta que não era JSON válido). Essa distinção ajuda a
+  // diagnosticar um problema NOVO mais rápido, sem precisar investigar o
+  // código de novo pra descobrir que, na real, não foi rede nem tempo.
+  async function enviarLote(entradasLote: [string, ArquivoRevisado[]][]) {
+    const gruposLote = montarGruposLote(entradasLote)
 
-    const resposta = await fetch('/api/envio-mensal', { method: 'POST', body: formData })
-    const dados = await resposta.json()
-
-    if (!resposta.ok) {
-      const motivo = typeof dados?.error === 'string' ? dados.error : 'Falha ao processar este lote.'
+    let resposta: Response
+    try {
+      resposta = await fetch('/api/envio-mensal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ competencia, grupos: gruposLote }),
+      })
+    } catch {
       return {
         emailsEnviados: 0,
-        falhas: entradasLote.map(([clienteId]) => ({ clienteId, nomeCliente: nomeCliente(clienteId), motivo })),
+        falhas: falhaParaTodos(
+          entradasLote,
+          'Falha de rede ao chamar o servidor. Verifique sua conexão e tente reenviar este(s) cliente(s).'
+        ),
       }
     }
 
-    return { emailsEnviados: dados.emailsEnviados as number, falhas: dados.falhas as Falha[] }
+    let dados: { emailsEnviados?: number; falhas?: Falha[]; error?: string } | null = null
+    try {
+      dados = await resposta.json()
+    } catch {
+      return {
+        emailsEnviados: 0,
+        falhas: falhaParaTodos(
+          entradasLote,
+          `O servidor respondeu de um jeito inesperado (status ${resposta.status}). Tente reenviar este(s) cliente(s).`
+        ),
+      }
+    }
+
+    if (!resposta.ok) {
+      const motivo = typeof dados?.error === 'string' ? dados.error : `Falha ao processar este lote (status ${resposta.status}).`
+      return { emailsEnviados: 0, falhas: falhaParaTodos(entradasLote, motivo) }
+    }
+
+    return { emailsEnviados: dados?.emailsEnviados ?? 0, falhas: dados?.falhas ?? [] }
   }
 
   async function handleEnviar() {
@@ -122,12 +157,16 @@ export default function EnvioMensalConfirmacao({
         const resultadoLote = await enviarLote(lotes[i])
         emailsEnviados += resultadoLote.emailsEnviados
         falhas.push(...resultadoLote.falhas)
-      } catch {
+      } catch (erroInesperado) {
+        // Última linha de defesa — enviarLote já trata rede, resposta
+        // inválida e status de erro com mensagem específica cada um; só
+        // chega aqui algo realmente imprevisto (ex: bug no código acima).
+        console.error('[EnvioMensalConfirmacao] Erro inesperado ao processar lote:', erroInesperado)
         falhas.push(
           ...lotes[i].map(([clienteId]) => ({
             clienteId,
             nomeCliente: nomeCliente(clienteId),
-            motivo: 'Falha de rede ou tempo esgotado ao enviar este lote. Reenvie apenas este(s) cliente(s).',
+            motivo: 'Erro inesperado ao processar este lote. Reenvie este(s) cliente(s).',
           }))
         )
       }
@@ -206,7 +245,7 @@ export default function EnvioMensalConfirmacao({
                 ))}
               </div>
               <p className="mt-2 text-xs text-navy-soft">
-                {arquivos.length} anexo(s): {arquivos.map((arquivo) => arquivo.file.name).join(', ')}
+                {arquivos.length} anexo(s): {arquivos.map((arquivo) => arquivo.nomeArquivo).join(', ')}
               </p>
             </div>
           )

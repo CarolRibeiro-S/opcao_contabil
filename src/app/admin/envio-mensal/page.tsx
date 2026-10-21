@@ -47,6 +47,11 @@ export default function EnvioMensalPage() {
 
   const [etapa, setEtapa] = useState(1)
   const [competencia, setCompetencia] = useState('')
+  // Isola o prefixo temporário de upload (envio-mensal-temp/{sessaoId}/...)
+  // desta sessão das demais — gerado uma vez só, na montagem da página, e
+  // reaproveitado ao ir e voltar entre Etapa 2 e Etapa 3 (o componente da
+  // página nunca desmonta, só troca qual etapa renderiza).
+  const [sessaoId] = useState(() => crypto.randomUUID())
 
   const [clientes, setClientes] = useState<ClienteOption[]>([])
   const [profissionais, setProfissionais] = useState<ProfissionalOption[]>([])
@@ -165,6 +170,7 @@ export default function EnvioMensalPage() {
 
       {etapa === 2 && (
         <EnvioMensalArquivos
+          sessaoId={sessaoId}
           clientes={clientes}
           profissionais={profissionais}
           tiposDisponiveis={TIPOS_PADRAO}

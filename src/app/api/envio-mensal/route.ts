@@ -8,18 +8,30 @@ import { sanitizarNomeArquivo } from '@/lib/storage/sanitizarNomeArquivo'
 
 export const dynamic = 'force-dynamic'
 
-// Mesmo problema (e mesma correção) do cron/prazos: processamento sequencial
-// de um cliente por vez — aqui ainda mais pesado, porque cada item envolve
-// upload de arquivo(s) pro Storage e um e-mail com anexo em base64, não só
-// um e-mail de texto. Era exatamente isso que fazia até um lote de 5
-// clientes (TAMANHO_LOTE do frontend, ver EnvioMensalConfirmacao.tsx)
-// estourar o tempo da function e voltar "Falha de rede ou tempo esgotado"
-// pra todo mundo daquele lote, mesmo que nenhum e-mail tivesse falhado de
-// verdade — só não deu tempo de processar. O Next.js exige que
-// "maxDuration" seja um literal (testado no cron/prazos: referência de
-// const quebra o build) — por isso não dá pra compartilhar o mesmo valor
-// via variável com o cálculo da trava de tempo logo abaixo. SE MUDAR UM,
-// MUDE O OUTRO.
+const BUCKET_DOCUMENTOS = 'documentos-clientes'
+
+// Processamento sequencial de um cliente por vez — aqui ainda mais pesado,
+// porque cada item envolve baixar arquivo(s) do Storage, subir pro caminho
+// definitivo, e montar um e-mail com anexo em base64, não só um e-mail de
+// texto. Era exatamente isso que fazia até um lote de 5 clientes
+// (TAMANHO_LOTE do frontend, ver EnvioMensalConfirmacao.tsx) estourar o
+// tempo da function e voltar "Falha de rede ou tempo esgotado" pra todo
+// mundo daquele lote, mesmo que nenhum e-mail tivesse falhado de verdade.
+//
+// IMPORTANTE (investigação de 2026-10-21): existia uma SEGUNDA causa raiz
+// pra essa mesma mensagem de erro, mais comum na prática — o limite de
+// 4,5 MB de payload de requisição da própria Vercel (plataforma, não
+// configurável). Antes, o navegador mandava os arquivos BINÁRIOS direto
+// nesta requisição (multipart/form-data); 2 anexos um pouco maiores (ex:
+// contrato social escaneado) já passavam de 4,5 MB e a Vercel rejeitava a
+// requisição ANTES desta function rodar — o front recebia uma resposta
+// que não era o JSON esperado, o que quebrava em resposta.json() e caía
+// no mesmo "Falha de rede ou tempo esgotado", mascarando a causa real.
+// A correção: a Etapa 2 (EnvioMensalArquivos.tsx) já sobe cada arquivo pro
+// Storage (prefixo envio-mensal-temp/) assim que é selecionado; esta rota
+// agora recebe só um JSON pequeno com os CAMINHOS, nunca os bytes — o
+// corpo da requisição nunca mais chega perto de 4,5 MB, seja qual for o
+// tamanho real dos PDFs.
 export const maxDuration = 60
 const MAX_DURATION_SEGUNDOS = 60
 
@@ -29,16 +41,16 @@ const MAX_DURATION_SEGUNDOS = 60
 // esse valor do frontend mude no futuro.
 const TAMANHO_LOTE_ENVIO = 10
 
-// Rede de segurança contra o lote ainda demorar demais (upload de arquivo
-// grande, Storage lento, etc.): ao passar de 80% do maxDuration, para de
-// começar clientes NOVOS e devolve uma resposta com o que já foi
-// processado — em vez de deixar a Vercel matar a function no meio, o que
-// derruba a conexão inteira e faz até quem já tinha sido enviado com
-// sucesso aparecer como falha pro admin (a causa raiz do bug reportado).
-// Quem não deu tempo de processar entra em "falhas" com um motivo
-// específico, orientando reenviar só esses — sem duplicar quem já recebeu
-// (o e-mail desses já foi confirmado enviado E o registro em
-// documentos_clientes já foi gravado antes da trava entrar em ação).
+// Rede de segurança contra o lote ainda demorar demais (Storage lento,
+// Resend lento, etc.): ao passar de 80% do maxDuration, para de começar
+// clientes NOVOS e devolve uma resposta com o que já foi processado — em
+// vez de deixar a Vercel matar a function no meio, o que derruba a conexão
+// inteira e faz até quem já tinha sido enviado com sucesso aparecer como
+// falha pro admin (a causa raiz do bug reportado em 15/08). Quem não deu
+// tempo de processar entra em "falhas" com um motivo específico,
+// orientando reenviar só esses — sem duplicar quem já recebeu (o e-mail
+// desses já foi confirmado enviado E o registro em documentos_clientes já
+// foi gravado antes da trava entrar em ação).
 const FRACAO_LIMITE_TEMPO = 0.8
 const LIMITE_TEMPO_MS = MAX_DURATION_SEGUNDOS * 1000 * FRACAO_LIMITE_TEMPO
 
@@ -73,7 +85,17 @@ async function emLotes<T>(
   return { processados: itens.length, interrompidoPorTempo: false }
 }
 
-type ArquivoGrupo = { chave: string; nomeArquivo: string; tipo: string; dataVencimento: string }
+type ArquivoGrupo = {
+  chave: string
+  nomeArquivo: string
+  tipo: string
+  dataVencimento: string
+  // Caminho no bucket documentos-clientes (prefixo envio-mensal-temp/) —
+  // gravado pela Etapa 2 assim que o upload terminou. null significa que
+  // o upload nunca completou (não devia chegar até aqui, mas tratado como
+  // "nada pra anexar" por segurança).
+  caminhoStorageTemp: string | null
+}
 type Grupo = { clienteId: string; arquivos: ArquivoGrupo[] }
 
 type Falha = { clienteId: string; nomeCliente: string; motivo: string }
@@ -95,20 +117,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Acesso negado.' }, { status: 403 })
   }
 
-  const formData = await request.formData()
-  const competencia = formData.get('competencia')
-  const gruposRaw = formData.get('grupos')
+  const body = await request.json().catch(() => null)
 
-  if (typeof competencia !== 'string' || typeof gruposRaw !== 'string' || !competencia) {
+  if (!body || typeof body.competencia !== 'string' || !body.competencia || !Array.isArray(body.grupos)) {
     return NextResponse.json({ error: 'Dados incompletos.' }, { status: 400 })
   }
 
-  let grupos: Grupo[]
-  try {
-    grupos = JSON.parse(gruposRaw)
-  } catch {
-    return NextResponse.json({ error: 'Dados inválidos.' }, { status: 400 })
-  }
+  const competencia = body.competencia as string
+  const grupos = body.grupos as Grupo[]
 
   const inicioExecucao = Date.now()
 
@@ -146,26 +162,34 @@ export async function POST(request: Request) {
       tipo: string
       caminho_arquivo: string
     }[] = []
+    // Só esvaziado (apagado do Storage) se o cliente inteiro der certo —
+    // ver comentário perto do fim desta função.
+    const caminhosTempParaApagar: string[] = []
 
     for (const arquivoInfo of grupo.arquivos) {
-      const arquivo = formData.get(arquivoInfo.chave)
+      if (!arquivoInfo.caminhoStorageTemp) continue
 
-      if (!(arquivo instanceof File)) {
+      const { data: arquivoBaixado, error: downloadError } = await supabaseAdmin.storage
+        .from(BUCKET_DOCUMENTOS)
+        .download(arquivoInfo.caminhoStorageTemp)
+
+      if (downloadError || !arquivoBaixado) {
+        console.error('[envio-mensal] Erro ao baixar arquivo temporário do Storage:', downloadError, arquivoInfo.caminhoStorageTemp)
         continue
       }
 
+      const buffer = Buffer.from(await arquivoBaixado.arrayBuffer())
       const caminhoArquivo = `${grupo.clienteId}/${sanitizarNomeArquivo(arquivoInfo.nomeArquivo)}`
-      const arrayBuffer = await arquivo.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
 
       const { error: uploadError } = await supabaseAdmin.storage
-        .from('documentos-clientes')
+        .from(BUCKET_DOCUMENTOS)
         .upload(caminhoArquivo, buffer, {
-          contentType: arquivo.type || undefined,
+          contentType: arquivoBaixado.type || undefined,
           upsert: true,
         })
 
       if (uploadError) {
+        console.error('[envio-mensal] Erro ao gravar arquivo no caminho definitivo:', uploadError)
         continue
       }
 
@@ -177,13 +201,14 @@ export async function POST(request: Request) {
       })
 
       anexos.push({ filename: arquivoInfo.nomeArquivo, content: buffer.toString('base64') })
+      caminhosTempParaApagar.push(arquivoInfo.caminhoStorageTemp)
     }
 
     if (anexos.length === 0) {
       falhas.push({
         clienteId: grupo.clienteId,
         nomeCliente: cliente.nome_empresa,
-        motivo: 'Nenhum arquivo pôde ser enviado ao Storage.',
+        motivo: 'Nenhum arquivo pôde ser lido do Storage.',
       })
       return
     }
@@ -219,6 +244,9 @@ export async function POST(request: Request) {
     })
 
     if (emailError) {
+      // NÃO apaga os temporários — se o e-mail falhou, o reenvio desse
+      // cliente precisa achar os mesmos arquivos de novo, sem o admin ter
+      // que re-anexar nada (pedido explícito).
       falhas.push({
         clienteId: grupo.clienteId,
         nomeCliente: cliente.nome_empresa,
@@ -238,6 +266,7 @@ export async function POST(request: Request) {
     )
 
     if (insertError) {
+      // Mesmo motivo do caso acima — mantém os temporários pro reenvio.
       falhas.push({
         clienteId: grupo.clienteId,
         nomeCliente: cliente.nome_empresa,
@@ -247,6 +276,15 @@ export async function POST(request: Request) {
     }
 
     emailsEnviados += 1
+
+    // Só chega aqui quando o cliente inteiro deu certo (e-mail enviado E
+    // documentos_clientes gravado) — aí sim os temporários não servem pra
+    // mais nada, e são apagados. Falha em apagar não derruba o envio, que
+    // já está confirmado; só sobra lixo no prefixo temporário.
+    const { error: removeError } = await supabaseAdmin.storage.from(BUCKET_DOCUMENTOS).remove(caminhosTempParaApagar)
+    if (removeError) {
+      console.error('[envio-mensal] Falha ao limpar arquivos temporários (não bloqueia o envio):', removeError)
+    }
   })
 
   // Clientes que sobraram porque a trava de tempo interrompeu antes de
