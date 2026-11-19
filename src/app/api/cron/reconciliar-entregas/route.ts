@@ -11,7 +11,10 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 const MAX_DURATION_SEGUNDOS = 60
 
-const TAMANHO_LOTE_ENVIO = 10
+// 8, não 10 — a API da Resend limita a 10 requisições/segundo no total
+// (ver consultarComRetry); folga de 2 pra qualquer outra chamada
+// concorrente (ex: outro admin usando o sistema ao mesmo tempo).
+const TAMANHO_LOTE_ENVIO = 8
 const FRACAO_LIMITE_TEMPO = 0.8
 const LIMITE_TEMPO_MS = MAX_DURATION_SEGUNDOS * 1000 * FRACAO_LIMITE_TEMPO
 
@@ -56,6 +59,30 @@ async function emLotes<T>(
 // essa checagem deveria resolver.
 const EVENTOS_FALHA_ENTREGA = new Set(['failed', 'bounced', 'canceled', 'complained', 'suppressed'])
 
+// Achado real ao testar esta rota: 10 chamadas concorrentes de
+// resend.emails.get() (um lote inteiro de TAMANHO_LOTE_ENVIO) já é
+// suficiente pra bater no limite de 10 requisições/segundo da própria API
+// da Resend — a maioria dos itens de um lote cheio volta com
+// rate_limit_exceeded (429), e sem isso eles cairiam no fallback de "não
+// deu pra confirmar, assume sucesso" (ver early return abaixo), deixando
+// de detectar falhas reais só por causa do limite de taxa, não por falta
+// de falha de verdade. Com retry e backoff, a segunda tentativa já cai
+// fora da mesma janela de 1s e passa.
+async function consultarComRetry(resend: Resend, emailId: string, tentativas = 3) {
+  for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
+    const resultado = await resend.emails.get(emailId)
+    const ehRateLimit = resultado.error?.name === 'rate_limit_exceeded' || (resultado.error as { statusCode?: number } | null)?.statusCode === 429
+
+    if (!ehRateLimit || tentativa === tentativas) return resultado
+
+    await new Promise((resolve) => setTimeout(resolve, 1200 * tentativa))
+  }
+
+  // Inalcançável (o loop sempre retorna no último "tentativa === tentativas"),
+  // só aqui pra satisfazer o TypeScript sobre o tipo de retorno da função.
+  return resend.emails.get(emailId)
+}
+
 type ClienteRef = { nome_empresa: string } | null
 
 type DocumentoRow = {
@@ -80,15 +107,36 @@ type EnvioSolicitacaoRow = {
   clientes: ClienteRef
 }
 
-// Item unificado das 3 origens — cobrancas fica de fora da descrição por
+type ClienteConviteRow = {
+  id: string
+  nome_empresa: string
+  convite_resend_email_id: string
+}
+
+// Convite de membro de equipe fica em profiles (não em clientes) — mesma
+// coluna de rastreio, tabela diferente, porque o profile já é a entidade
+// (1:1 com a pessoa), sem a complicação de profile_id compartilhado que
+// existe pra clientes. Ver api/equipe/convidar/route.ts.
+type ProfileConviteRow = {
+  id: string
+  nome: string | null
+  convite_resend_email_id: string
+}
+
+// Item unificado das origens — cobrancas fica de fora da descrição por
 // tabela porque usa um shape ligeiramente diferente (nome_arquivo não
 // existe lá, por exemplo); normalizado aqui pra todo o resto do fluxo
 // (checagem, inserção em email_eventos, e-mail de resumo) tratar igual.
+// marcarConviteFalhaEm só é preenchido pras origens de convite ('Convite'
+// e 'Convite (Equipe)') — é o que permite atualizar
+// clientes.convite_falha_confirmada_em ou profiles.convite_falha_confirmada_em
+// além de email_eventos (ver comentário no cruzamento mais abaixo).
 type ItemReconciliacao = {
   origem: ItemFalhaTardiaReconciliacao['origem']
   clienteNome: string
   descricao: string
   resendEmailId: string
+  marcarConviteFalhaEm?: { tabela: 'clientes' | 'profiles'; id: string }
 }
 
 export async function GET(request: Request) {
@@ -104,7 +152,7 @@ export async function GET(request: Request) {
 
   const desde = new Date(Date.now() - DIAS_JANELA * 24 * 60 * 60 * 1000).toISOString()
 
-  const [documentosRes, cobrancasRes, solicitacoesRes] = await Promise.all([
+  const [documentosRes, cobrancasRes, solicitacoesRes, convitesRes, convitesEquipeRes] = await Promise.all([
     supabaseAdmin
       .from('documentos_clientes')
       .select('id, nome_arquivo, resend_email_id, clientes(nome_empresa)')
@@ -123,6 +171,26 @@ export async function GET(request: Request) {
       .not('resend_email_id', 'is', null)
       .gte('enviado_em', desde)
       .returns<EnvioSolicitacaoRow[]>(),
+    // Diferente das outras 3 origens, aqui a checagem síncrona já grava
+    // a falha direto em convite_falha_confirmada_em (ver api/clientes/
+    // convidar e api/clientes/atualizar-email-acesso) — por isso o filtro
+    // abaixo já exclui quem a própria rota já confirmou como falha, só
+    // sobrando quem ainda está "sem confirmação" pra essa checagem tardia
+    // cobrir (ex: bounce que só confirmou depois do 1,5s de espera).
+    supabaseAdmin
+      .from('clientes')
+      .select('id, nome_empresa, convite_resend_email_id')
+      .not('convite_resend_email_id', 'is', null)
+      .is('convite_falha_confirmada_em', null)
+      .gte('convite_enviado_em', desde)
+      .returns<ClienteConviteRow[]>(),
+    supabaseAdmin
+      .from('profiles')
+      .select('id, nome, convite_resend_email_id')
+      .not('convite_resend_email_id', 'is', null)
+      .is('convite_falha_confirmada_em', null)
+      .gte('convite_enviado_em', desde)
+      .returns<ProfileConviteRow[]>(),
   ])
 
   const itens: ItemReconciliacao[] = [
@@ -143,6 +211,20 @@ export async function GET(request: Request) {
       clienteNome: envio.clientes?.nome_empresa ?? 'Cliente',
       descricao: `${envio.tipo} — ${envio.competencia}`,
       resendEmailId: envio.resend_email_id,
+    })),
+    ...(convitesRes.data ?? []).map((cliente) => ({
+      origem: 'Convite' as const,
+      clienteNome: cliente.nome_empresa,
+      descricao: 'código de acesso ao Portal',
+      resendEmailId: cliente.convite_resend_email_id,
+      marcarConviteFalhaEm: { tabela: 'clientes' as const, id: cliente.id },
+    })),
+    ...(convitesEquipeRes.data ?? []).map((membro) => ({
+      origem: 'Convite (Equipe)' as const,
+      clienteNome: membro.nome ?? 'Membro da equipe',
+      descricao: 'código de acesso ao Admin',
+      resendEmailId: membro.convite_resend_email_id,
+      marcarConviteFalhaEm: { tabela: 'profiles' as const, id: membro.id },
     })),
   ]
 
@@ -168,7 +250,7 @@ export async function GET(request: Request) {
   const falhasEncontradas: ItemFalhaTardiaReconciliacao[] = []
 
   const resultado = await emLotes(itensParaChecar, TAMANHO_LOTE_ENVIO, inicioExecucao, async (item) => {
-    const { data, error } = await resend.emails.get(item.resendEmailId)
+    const { data, error } = await consultarComRetry(resend, item.resendEmailId)
 
     if (error || !data) {
       console.error(`[cron/reconciliar-entregas] Não foi possível consultar ${item.resendEmailId}:`, error)
@@ -194,6 +276,24 @@ export async function GET(request: Request) {
     if (insertError) {
       console.error(`[cron/reconciliar-entregas] Falha ao gravar email_eventos pra ${item.resendEmailId}:`, insertError)
       return
+    }
+
+    // Convite é o único caso em que o admin não vê o badge através de
+    // email_eventos (ClientesTable.tsx lê clientes.convite_falha_confirmada_em
+    // direto, sem cruzar — ver desenho combinado antes dessa Frente 3; o
+    // mesmo vale pra profiles, se/quando a tela de Equipe ganhar um badge
+    // equivalente). Sem essa segunda escrita, a falha tardia nunca
+    // apareceria nessas telas, só as que a checagem síncrona já pegou.
+    if (item.marcarConviteFalhaEm) {
+      const { tabela, id } = item.marcarConviteFalhaEm
+      const { error: updateConviteError } = await supabaseAdmin
+        .from(tabela)
+        .update({ convite_falha_confirmada_em: new Date().toISOString() })
+        .eq('id', id)
+
+      if (updateConviteError) {
+        console.error(`[cron/reconciliar-entregas] Falha ao marcar convite_falha_confirmada_em em ${tabela} (${id}):`, updateConviteError)
+      }
     }
 
     falhasEncontradas.push({

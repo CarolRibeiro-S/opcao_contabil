@@ -23,7 +23,7 @@ export default async function EquipePage() {
 
   const { data: membros } = await supabase
     .from('profiles')
-    .select('id, nome, email, telefone, cargo, status')
+    .select('id, nome, email, telefone, cargo, status, convite_falha_confirmada_em')
     .eq('role', 'admin')
     .order('nome', { ascending: true })
 
@@ -102,15 +102,29 @@ export default async function EquipePage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${
-                            aceito
-                              ? 'border border-success-border bg-success-bg text-success'
-                              : 'border border-amber-200 bg-amber-50 text-amber-700'
-                          }`}
-                        >
-                          {aceito ? 'Convite aceito' : 'Pendente'}
-                        </span>
+                        {/* Mesma prioridade do badge equivalente em ClientesTable.tsx:
+                            uma falha de entrega confirmada só é crítica enquanto o
+                            convite ainda não foi aceito — depois disso, a pessoa já
+                            tem acesso e uma falha de um envio posterior não é mais
+                            urgente. */}
+                        {membro.convite_falha_confirmada_em && !aceito ? (
+                          <span
+                            className="rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] text-red-700"
+                            title={`A Resend não confirmou a entrega do código de acesso em ${new Date(membro.convite_falha_confirmada_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}. Convide de novo.`}
+                          >
+                            Convite falhou
+                          </span>
+                        ) : (
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] ${
+                              aceito
+                                ? 'border border-success-border bg-success-bg text-success'
+                                : 'border border-amber-200 bg-amber-50 text-amber-700'
+                            }`}
+                          >
+                            {aceito ? 'Convite aceito' : 'Pendente'}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <AcoesEquipe

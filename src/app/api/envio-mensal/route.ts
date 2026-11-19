@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { emailImpostosMensal } from '@/lib/email/templates'
 import { TIPOS_SEM_VENCIMENTO } from '@/lib/envioMensal'
 import { sanitizarNomeArquivo } from '@/lib/storage/sanitizarNomeArquivo'
+import { emailTemFormatoValido } from '@/lib/validarEmail'
 
 export const dynamic = 'force-dynamic'
 
@@ -196,6 +197,15 @@ export async function POST(request: Request) {
       return
     }
 
+    if (!emailTemFormatoValido(cliente.email)) {
+      falhas.push({
+        clienteId: grupo.clienteId,
+        nomeCliente: cliente.nome_empresa,
+        motivo: 'E-mail do cliente em formato inválido.',
+      })
+      return
+    }
+
     const anexos: { filename: string; content: string }[] = []
     const documentosParaInserir: {
       cliente_id: string
@@ -206,9 +216,20 @@ export async function POST(request: Request) {
     // Só esvaziado (apagado do Storage) se o cliente inteiro der certo —
     // ver comentário perto do fim desta função.
     const caminhosTempParaApagar: string[] = []
+    // Nomes dos arquivos que falharam em qualquer etapa — usado logo
+    // abaixo pra bloquear o envio INTEIRO desse cliente se qualquer
+    // arquivo falhar, não só quando todos falham. Antes, uma falha
+    // parcial (1 de N arquivos) resultava num e-mail enviado só com os
+    // outros N-1 anexos, sem erro nem log visível pro admin — o cliente
+    // recebia um e-mail incompleto sem ninguém saber.
+    const arquivosComFalha: string[] = []
 
     for (const arquivoInfo of grupo.arquivos) {
-      if (!arquivoInfo.caminhoStorageTemp) continue
+      if (!arquivoInfo.caminhoStorageTemp) {
+        console.error('[envio-mensal] Arquivo sem caminho de upload temporário (upload nunca completou):', arquivoInfo.nomeArquivo)
+        arquivosComFalha.push(arquivoInfo.nomeArquivo)
+        continue
+      }
 
       const { data: arquivoBaixado, error: downloadError } = await supabaseAdmin.storage
         .from(BUCKET_DOCUMENTOS)
@@ -216,6 +237,7 @@ export async function POST(request: Request) {
 
       if (downloadError || !arquivoBaixado) {
         console.error('[envio-mensal] Erro ao baixar arquivo temporário do Storage:', downloadError, arquivoInfo.caminhoStorageTemp)
+        arquivosComFalha.push(arquivoInfo.nomeArquivo)
         continue
       }
 
@@ -231,6 +253,7 @@ export async function POST(request: Request) {
 
       if (uploadError) {
         console.error('[envio-mensal] Erro ao gravar arquivo no caminho definitivo:', uploadError)
+        arquivosComFalha.push(arquivoInfo.nomeArquivo)
         continue
       }
 
@@ -245,7 +268,23 @@ export async function POST(request: Request) {
       caminhosTempParaApagar.push(arquivoInfo.caminhoStorageTemp)
     }
 
+    if (arquivosComFalha.length > 0) {
+      // Não envia nada — nem os arquivos que deram certo. Os temporários
+      // continuam no Storage (não chegamos no bloco de limpeza, que só
+      // roda depois do e-mail confirmado), então o reenvio encontra todos
+      // os arquivos de novo, sem o admin precisar re-anexar nada.
+      falhas.push({
+        clienteId: grupo.clienteId,
+        nomeCliente: cliente.nome_empresa,
+        motivo: `${arquivosComFalha.length} de ${grupo.arquivos.length} arquivo(s) não puderam ser lidos do Storage (${arquivosComFalha.join(', ')}) — nenhum e-mail foi enviado pra evitar envio incompleto. Tente reenviar.`,
+      })
+      return
+    }
+
     if (anexos.length === 0) {
+      // Defensivo: só alcançável se grupo.arquivos vier vazio de verdade
+      // (arquivosComFalha já teria bloqueado antes, se houvesse qualquer
+      // arquivo no grupo).
       falhas.push({
         clienteId: grupo.clienteId,
         nomeCliente: cliente.nome_empresa,

@@ -6,6 +6,32 @@ import { emailComunicado } from '@/lib/email/templates'
 
 export const dynamic = 'force-dynamic'
 
+// Mesmo padrão já usado em envio-mensal, cobrancas/notificar-boleto e
+// cron/solicitacao-mensal — resend.emails.send() só confirma que a Resend
+// ACEITOU o e-mail, não que foi entregue. Investigação de 2026-11 achou
+// esse mesmo buraco em todas as rotas de e-mail do sistema.
+const EVENTOS_FALHA_ENTREGA = new Set(['failed', 'bounced', 'canceled', 'complained', 'suppressed'])
+
+async function envioRealmenteTeveSucesso(resend: Resend, emailId: string | undefined): Promise<boolean> {
+  if (!emailId) return false
+
+  await new Promise((resolve) => setTimeout(resolve, 1500))
+
+  const { data, error } = await resend.emails.get(emailId)
+
+  if (error || !data) {
+    console.error(`[api/comunicados/enviar-massa] Não foi possível confirmar status de entrega do e-mail ${emailId}:`, error)
+    return true
+  }
+
+  if (EVENTOS_FALHA_ENTREGA.has(data.last_event)) {
+    console.error(`[api/comunicados/enviar-massa] E-mail ${emailId} foi aceito mas falhou no despacho (last_event=${data.last_event})`)
+    return false
+  }
+
+  return true
+}
+
 type Falha = { clienteId: string; nomeCliente: string; motivo: string }
 
 type ClienteResumo = { id: string; nome_empresa: string; email: string | null }
@@ -211,15 +237,32 @@ export async function POST(request: Request) {
       continue
     }
 
+    const entregaConfirmada = await envioRealmenteTeveSucesso(resend, emailData?.id)
+
     // Mesma lógica do envio individual (ver api/comunicados/notificar):
     // resend_email_id alimenta o rastreio de "visto" via abertura/clique do
-    // e-mail, no comunicado e no documento anexado (se teve).
+    // e-mail, no comunicado e no documento anexado (se teve) — grava
+    // mesmo em caso de falha tardia, pra auditoria e pra reconciliação
+    // conseguir cruzar depois (ver cron/reconciliar-entregas).
     if (emailData?.id) {
       await supabaseAdmin.from('comunicados').update({ resend_email_id: emailData.id }).eq('id', comunicadoCriado.id)
 
       if (documentoId) {
         await supabaseAdmin.from('documentos_clientes').update({ resend_email_id: emailData.id }).eq('id', documentoId)
       }
+    }
+
+    if (!entregaConfirmada) {
+      // NÃO conta como emailsEnviados — a Resend aceitou o envio, mas
+      // confirmou depois que ele não foi despachado de verdade. O
+      // comunicado em si já está salvo (visível no Portal quando o
+      // cliente acessar), só a notificação por e-mail falhou.
+      falhas.push({
+        clienteId,
+        nomeCliente: cliente.nome_empresa,
+        motivo: 'Comunicado salvo, mas a Resend não confirmou a entrega do e-mail (falha no despacho).',
+      })
+      continue
     }
 
     emailsEnviados += 1

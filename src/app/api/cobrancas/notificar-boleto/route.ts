@@ -3,6 +3,7 @@ import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { emailCobrancaBoleto } from '@/lib/email/templates'
+import { emailTemFormatoValido } from '@/lib/validarEmail'
 
 export const dynamic = 'force-dynamic'
 
@@ -96,6 +97,10 @@ export async function POST(request: Request) {
 
   if (!cobranca.clientes?.email) {
     return NextResponse.json({ error: 'Cliente sem e-mail cadastrado.' }, { status: 400 })
+  }
+
+  if (!emailTemFormatoValido(cobranca.clientes.email)) {
+    return NextResponse.json({ error: 'E-mail do cliente em formato inválido.' }, { status: 400 })
   }
 
   if (!cobranca.competencia || cobranca.valor === null || !cobranca.data_vencimento) {

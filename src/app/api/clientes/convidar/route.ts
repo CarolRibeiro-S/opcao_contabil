@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { registrarHistorico } from '@/lib/historico'
 import { emailConvitePortalCliente, emailEmpresaVinculada, emailReenvioConvite } from '@/lib/email/templates'
+import { emailTemFormatoValido } from '@/lib/validarEmail'
 
 export const dynamic = 'force-dynamic'
 
@@ -128,6 +129,10 @@ export async function POST(request: Request) {
 
   if (!cliente.email) {
     return NextResponse.json({ error: 'Cliente sem e-mail cadastrado.' }, { status: 400 })
+  }
+
+  if (!emailTemFormatoValido(cliente.email)) {
+    return NextResponse.json({ error: 'E-mail do cliente em formato inválido.' }, { status: 400 })
   }
 
   // Segundo passo do fluxo "e-mail já existe" (ver branch jaExiste mais

@@ -5,8 +5,35 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { CHAVES_MODULOS_ADMIN } from '@/lib/constants/modulosAdmin'
 import { registrarHistorico } from '@/lib/historico'
 import { emailConviteEquipe } from '@/lib/email/templates'
+import { emailTemFormatoValido } from '@/lib/validarEmail'
 
 export const dynamic = 'force-dynamic'
+
+// Mesmo padrão já usado em api/clientes/convidar/route.ts — resend_email_id
+// aqui fica em profiles (não existe uma tabela "clientes" equivalente pra
+// membro de equipe: o profile já É a entidade, 1:1 com a pessoa, então não
+// tem a mesma complicação de profile_id compartilhado entre clientes).
+const EVENTOS_FALHA_ENTREGA = new Set(['failed', 'bounced', 'canceled', 'complained', 'suppressed'])
+
+async function envioRealmenteTeveSucesso(resend: Resend, emailId: string | undefined): Promise<boolean> {
+  if (!emailId) return false
+
+  await new Promise((resolve) => setTimeout(resolve, 1500))
+
+  const { data, error } = await resend.emails.get(emailId)
+
+  if (error || !data) {
+    console.error(`[api/equipe/convidar] Não foi possível confirmar status de entrega do e-mail ${emailId}:`, error)
+    return true
+  }
+
+  if (EVENTOS_FALHA_ENTREGA.has(data.last_event)) {
+    console.error(`[api/equipe/convidar] E-mail ${emailId} foi aceito mas falhou no despacho (last_event=${data.last_event})`)
+    return false
+  }
+
+  return true
+}
 
 export async function POST(request: Request) {
   const supabaseAuth = await createClient()
@@ -39,6 +66,11 @@ export async function POST(request: Request) {
 
   const nome = body.nome.trim()
   const email = body.email.trim()
+
+  if (!emailTemFormatoValido(email)) {
+    return NextResponse.json({ error: 'E-mail em formato inválido.' }, { status: 400 })
+  }
+
   const telefone = typeof body.telefone === 'string' && body.telefone.trim() ? body.telefone.trim() : null
   const cargo = typeof body.cargo === 'string' && body.cargo.trim() ? body.cargo.trim() : null
 
@@ -125,7 +157,7 @@ export async function POST(request: Request) {
       linkVerificarCodigo,
     })
 
-    const { error: emailError } = await resend.emails.send({
+    const { data: emailData, error: emailError } = await resend.emails.send({
       from: 'naoresponda@opcaocontabilbsb.com.br',
       to: email,
       subject,
@@ -134,11 +166,36 @@ export async function POST(request: Request) {
 
     if (emailError) {
       console.error('[api/equipe/convidar] Erro ao enviar e-mail de convite:', emailError)
+      await supabaseAdmin
+        .from('profiles')
+        .update({ convite_enviado_em: new Date().toISOString(), convite_falha_confirmada_em: new Date().toISOString() })
+        .eq('id', convite.user.id)
 
       return NextResponse.json(
         {
           error: 'O acesso foi criado, mas houve um erro ao enviar o e-mail com o código.',
           detalhes: emailError.message,
+        },
+        { status: 500 }
+      )
+    }
+
+    const entregaConfirmada = await envioRealmenteTeveSucesso(resend, emailData?.id)
+    const agora = new Date().toISOString()
+    await supabaseAdmin
+      .from('profiles')
+      .update({
+        convite_resend_email_id: emailData?.id ?? null,
+        convite_enviado_em: agora,
+        convite_falha_confirmada_em: entregaConfirmada ? null : agora,
+      })
+      .eq('id', convite.user.id)
+
+    if (!entregaConfirmada) {
+      return NextResponse.json(
+        {
+          error:
+            'O acesso foi criado, mas a Resend não confirmou a entrega do e-mail com o código (falha no despacho). Convide de novo.',
         },
         { status: 500 }
       )

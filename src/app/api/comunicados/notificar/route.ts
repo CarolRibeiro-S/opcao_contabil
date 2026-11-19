@@ -6,6 +6,31 @@ import { emailNovaMensagemComunicado } from '@/lib/email/templates'
 
 export const dynamic = 'force-dynamic'
 
+// Mesmo padrão já usado nas outras rotas de e-mail do sistema —
+// resend.emails.send() só confirma que a Resend ACEITOU o envio, não que
+// foi entregue de verdade.
+const EVENTOS_FALHA_ENTREGA = new Set(['failed', 'bounced', 'canceled', 'complained', 'suppressed'])
+
+async function envioRealmenteTeveSucesso(resend: Resend, emailId: string | undefined): Promise<boolean> {
+  if (!emailId) return false
+
+  await new Promise((resolve) => setTimeout(resolve, 1500))
+
+  const { data, error } = await resend.emails.get(emailId)
+
+  if (error || !data) {
+    console.error(`[api/comunicados/notificar] Não foi possível confirmar status de entrega do e-mail ${emailId}:`, error)
+    return true
+  }
+
+  if (EVENTOS_FALHA_ENTREGA.has(data.last_event)) {
+    console.error(`[api/comunicados/notificar] E-mail ${emailId} foi aceito mas falhou no despacho (last_event=${data.last_event})`)
+    return false
+  }
+
+  return true
+}
+
 // Chamada pelo ThreadComunicado (Admin e Portal) depois que uma mensagem já
 // foi salva com sucesso em mensagens_comunicado — o e-mail é um bônus, nunca
 // deve travar a tela se falhar (por isso todo erro aqui vira console.error
@@ -178,7 +203,8 @@ export async function POST(request: Request) {
       // mesmo campo que a visualização no Portal já alimenta, valendo o que
       // acontecer primeiro. Grava no comunicado e, se essa mensagem trouxe
       // um documento anexado, no documento também (mesmo e-mail avisa dos
-      // dois).
+      // dois) — mesmo em caso de falha tardia (ver abaixo), pra auditoria e
+      // pra reconciliação (cron/reconciliar-entregas) conseguir cruzar.
       if (emailData?.id) {
         await supabaseAdmin.from('comunicados').update({ resend_email_id: emailData.id }).eq('id', comunicado.id)
 
@@ -188,6 +214,16 @@ export async function POST(request: Request) {
             .update({ resend_email_id: emailData.id })
             .eq('id', mensagem.documento_id)
         }
+      }
+
+      const entregaConfirmada = await envioRealmenteTeveSucesso(resend, emailData?.id)
+
+      if (!entregaConfirmada) {
+        return NextResponse.json({
+          sucesso: true,
+          notificado: false,
+          motivo: 'falha_confirmada_na_entrega',
+        })
       }
     }
 

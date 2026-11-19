@@ -3,6 +3,7 @@ import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { determinarEnviosDoDia, competenciaDoMes } from '@/lib/solicitacaoMensal'
 import { emailSolicitacaoMensal } from '@/lib/email/templates'
+import { emailTemFormatoValido } from '@/lib/validarEmail'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
   const envios = determinarEnviosDoDia(hoje)
 
   if (envios.length === 0) {
-    return NextResponse.json({ enviosDoDia: [], enviados: 0, pulados: 0, semEmail: 0 })
+    return NextResponse.json({ enviosDoDia: [], enviados: 0, pulados: 0, semEmail: 0, emailInvalido: 0 })
   }
 
   const supabase = createAdminClient()
@@ -78,11 +79,17 @@ export async function GET(request: Request) {
   let enviados = 0
   let pulados = 0
   let semEmail = 0
+  let emailInvalido = 0
 
   for (const tipo of envios) {
     for (const cliente of clientes ?? []) {
       if (!cliente.email) {
         semEmail += 1
+        continue
+      }
+
+      if (!emailTemFormatoValido(cliente.email)) {
+        emailInvalido += 1
         continue
       }
 
@@ -135,5 +142,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ enviosDoDia: envios, enviados, pulados, semEmail })
+  return NextResponse.json({ enviosDoDia: envios, enviados, pulados, semEmail, emailInvalido })
 }
