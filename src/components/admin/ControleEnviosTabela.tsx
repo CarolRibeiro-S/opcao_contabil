@@ -2,6 +2,15 @@
 
 import { useMemo, useState } from 'react'
 
+export type FalhaEntregaEnvio = { tipo: string; detalhe: string | null; criadoEm: string }
+
+const TIPO_FALHA_LABEL: Record<string, string> = {
+  bounced: 'Bounce',
+  failed: 'Falha no despacho',
+  delivery_delayed: 'Entrega atrasada',
+  complained: 'Marcado como spam',
+}
+
 export type ItemEnvio = {
   id: string
   categoria: 'comunicado' | 'documento' | 'solicitacao_mensal'
@@ -10,6 +19,7 @@ export type ItemEnvio = {
   descricao: string
   dataEnvio: string
   visualizadoEm: string | null
+  falhaEntrega: FalhaEntregaEnvio | null
 }
 
 const categoriaLabel: Record<ItemEnvio['categoria'], string> = {
@@ -38,6 +48,7 @@ function formatarDataHora(iso: string) {
 export default function ControleEnviosTabela({ itens }: { itens: ItemEnvio[] }) {
   const [clienteFiltro, setClienteFiltro] = useState('')
   const [soNaoVisualizados, setSoNaoVisualizados] = useState(false)
+  const [soComFalhaEntrega, setSoComFalhaEntrega] = useState(false)
 
   const clientes = useMemo(() => {
     const mapa = new Map<string, string>()
@@ -50,6 +61,7 @@ export default function ControleEnviosTabela({ itens }: { itens: ItemEnvio[] }) 
   const itensFiltrados = itens.filter((item) => {
     if (clienteFiltro && item.clienteId !== clienteFiltro) return false
     if (soNaoVisualizados && item.visualizadoEm) return false
+    if (soComFalhaEntrega && !item.falhaEntrega) return false
     return true
   })
 
@@ -77,6 +89,16 @@ export default function ControleEnviosTabela({ itens }: { itens: ItemEnvio[] }) 
             className="h-4 w-4 accent-lime"
           />
           Só não visualizados
+        </label>
+
+        <label className="flex items-center gap-2 text-sm text-charcoal">
+          <input
+            type="checkbox"
+            checked={soComFalhaEntrega}
+            onChange={(e) => setSoComFalhaEntrega(e.target.checked)}
+            className="h-4 w-4 accent-lime"
+          />
+          Só com falha de entrega
         </label>
 
         <span className="ml-auto text-xs text-navy-soft">
@@ -123,7 +145,18 @@ export default function ControleEnviosTabela({ itens }: { itens: ItemEnvio[] }) 
                     <td className="px-4 py-3 text-charcoal">{item.descricao}</td>
                     <td className="px-4 py-3 text-charcoal">{formatarDataHora(item.dataEnvio)}</td>
                     <td className="px-4 py-3">
-                      {item.visualizadoEm ? (
+                      {item.falhaEntrega ? (
+                        <span
+                          className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-red-700"
+                          title={
+                            item.falhaEntrega.detalhe
+                              ? `${TIPO_FALHA_LABEL[item.falhaEntrega.tipo] ?? item.falhaEntrega.tipo} — ${item.falhaEntrega.detalhe}`
+                              : TIPO_FALHA_LABEL[item.falhaEntrega.tipo] ?? item.falhaEntrega.tipo
+                          }
+                        >
+                          Falha de entrega
+                        </span>
+                      ) : item.visualizadoEm ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-success-border bg-success-bg px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-success">
                           Visto em {formatarDataHora(item.visualizadoEm)}
                         </span>

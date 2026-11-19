@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/gerar-honorarios",
       "schedule": "0 9 1 * *"
+    },
+    {
+      "path": "/api/cron/reconciliar-entregas",
+      "schedule": "0 13 * * *"
     }
   ]
 }

@@ -951,6 +951,87 @@ export function emailAlertaFalhaEnvioResend({
   return { subject, html }
 }
 
+export type ItemFalhaTardiaReconciliacao = {
+  origem: 'Documento' | 'Honorário' | 'Solicitação Mensal'
+  clienteNome: string
+  descricao: string
+  tipoFalha: string
+}
+
+type EmailResumoReconciliacaoEntregasParams = {
+  itens: ItemFalhaTardiaReconciliacao[]
+}
+
+// Resumo diário do cron de reconciliação (api/cron/reconciliar-entregas) —
+// pego por ADMIN_ALERT_EMAIL, mesmo destinatário dos outros alertas
+// operacionais do sistema (ver emailResumoDiarioAdmin). Só dispara quando
+// a reconciliação encontra alguma falha de entrega que a checagem síncrona
+// de ~1,5s (envioRealmenteTeveSucesso) não pegou no momento do envio —
+// cobre bounces/falhas que a Resend só confirma alguns segundos ou minutos
+// depois. Um e-mail por dia, não um por item, mesmo que vários clientes
+// sejam afetados no mesmo disparo.
+export function emailResumoReconciliacaoEntregas({ itens }: EmailResumoReconciliacaoEntregasParams) {
+  const subject = `[Alerta] Reconciliação encontrou ${itens.length} falha(s) de entrega não detectada(s) no envio`
+
+  const linhas = itens
+    .map(
+      (item) => `
+                  <tr>
+                    <td style="padding:12px 16px; border-bottom:1px solid #eceee7; color:#24261f; font-size:13px;">${escapeHtml(item.clienteNome)}</td>
+                    <td style="padding:12px 16px; border-bottom:1px solid #eceee7; color:#24261f; font-size:13px;">${escapeHtml(item.origem)} — ${escapeHtml(item.descricao)}</td>
+                    <td style="padding:12px 16px; border-bottom:1px solid #eceee7; color:#b91c1c; font-size:13px; font-weight:bold;">${escapeHtml(item.tipoFalha)}</td>
+                  </tr>`
+    )
+    .join('')
+
+  const html = `
+<!doctype html>
+<html lang="pt-BR">
+  <body style="margin:0; padding:0; background-color:#f7f8f5; font-family: Arial, Helvetica, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f8f5; padding:32px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; border:1px solid #d8ddd0; overflow:hidden;">
+            <tr>
+              <td style="background-color:#b91c1c; padding:20px 28px;">
+                <span style="color:#ffffff; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; font-family: 'Courier New', monospace;">
+                  Opção Contábil — Reconciliação de Entregas
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px;">
+                <p style="margin:0 0 16px; color:#24261f; font-size:15px; line-height:1.5;">
+                  A reconciliação diária encontrou ${itens.length} envio(s) marcado(s) como enviado(s) com sucesso
+                  no momento do disparo, mas que a Resend confirma não terem sido entregues de verdade. Isso cobre
+                  casos em que a confirmação feita no momento do envio (~1,5s de espera) não teve tempo de ver a
+                  falha — a Resend só a confirmou depois.
+                </p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d8ddd0; border-radius:6px; border-collapse:collapse;">
+                  <tr style="background-color:#faf9f6;">
+                    <th style="padding:10px 16px; text-align:left; color:#8a8f80; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;">Cliente</th>
+                    <th style="padding:10px 16px; text-align:left; color:#8a8f80; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;">Envio</th>
+                    <th style="padding:10px 16px; text-align:left; color:#8a8f80; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;">Motivo</th>
+                  </tr>
+                  ${linhas}
+                </table>
+                <p style="margin:20px 0 0; color:#55564a; font-size:13px;">
+                  Esses envios já estão sinalizados no sistema (Controle de Envios e Honorários) — vale reenviar
+                  pra quem precisar receber o documento ou cobrança de verdade.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`.trim()
+
+  return { subject, html }
+}
+
 type EmailCobrancaBoletoParams = {
   nomeCliente: string
   competencia: string
