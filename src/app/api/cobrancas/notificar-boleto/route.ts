@@ -6,6 +6,36 @@ import { emailCobrancaBoleto } from '@/lib/email/templates'
 
 export const dynamic = 'force-dynamic'
 
+// A resposta síncrona de resend.emails.send() só confirma que a Resend
+// ACEITOU o e-mail na fila — falhas que só acontecem no despacho em si
+// (ex: bounce) nunca aparecem no "error" do send(), só depois, consultando
+// o e-mail pelo id (campo last_event). Mesmo padrão já usado em
+// src/app/api/cron/prazos/route.ts e src/app/api/envio-mensal/route.ts,
+// aplicado aqui após a investigação de 2026-11-19 encontrar o mesmo buraco
+// nesta rota: resend_email_id já era salvo, mas nada conferia se o e-mail
+// do boleto realmente chegou antes de marcar enviado_email_em.
+const EVENTOS_FALHA_ENTREGA = new Set(['failed', 'bounced', 'canceled', 'complained', 'suppressed'])
+
+async function envioRealmenteTeveSucesso(resend: Resend, emailId: string | undefined): Promise<boolean> {
+  if (!emailId) return false
+
+  await new Promise((resolve) => setTimeout(resolve, 1500))
+
+  const { data, error } = await resend.emails.get(emailId)
+
+  if (error || !data) {
+    console.error(`[api/cobrancas/notificar-boleto] Não foi possível confirmar status de entrega do e-mail ${emailId}:`, error)
+    return true
+  }
+
+  if (EVENTOS_FALHA_ENTREGA.has(data.last_event)) {
+    console.error(`[api/cobrancas/notificar-boleto] E-mail ${emailId} foi aceito mas falhou no despacho (last_event=${data.last_event})`)
+    return false
+  }
+
+  return true
+}
+
 type CobrancaRow = {
   id: string
   competencia: string | null
@@ -109,6 +139,19 @@ export async function POST(request: Request) {
     if (emailError) {
       console.error('[api/cobrancas/notificar-boleto] Falha ao enviar e-mail:', emailError)
       return NextResponse.json({ error: 'Falha ao enviar o e-mail.', detalhes: emailError.message }, { status: 500 })
+    }
+
+    if (!(await envioRealmenteTeveSucesso(resend, emailData?.id))) {
+      // NÃO marca enviado_email_em — o boleto continua aparecendo como
+      // "E-mail pendente" pro admin (CobrancasTable.tsx já trata isso só
+      // com base em enviado_email_em ser null), sinalizando que precisa
+      // reenviar. resend_email_id fica salvo mesmo assim, pra auditoria.
+      await supabaseAdmin.from('cobrancas').update({ resend_email_id: emailData?.id ?? null }).eq('id', cobranca.id)
+
+      return NextResponse.json(
+        { error: 'A Resend aceitou o envio mas não confirmou a entrega (falha no despacho). Tente reenviar.' },
+        { status: 500 }
+      )
     }
 
     // resend_email_id é o que cruza esse envio com os eventos de entrega que
