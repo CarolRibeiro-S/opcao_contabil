@@ -58,6 +58,47 @@ function tempoEsgotado(inicioExecucao: number): boolean {
   return Date.now() - inicioExecucao > LIMITE_TEMPO_MS
 }
 
+// A resposta síncrona de resend.emails.send() só confirma que a Resend
+// ACEITOU o e-mail na fila — o tipo de retorno de sucesso só tem um campo,
+// { id }. Falhas que só acontecem no despacho em si (ex: cota diária
+// excedida) nunca aparecem no "error" do send() — só depois, consultando o
+// e-mail pelo id (campo last_event). Mesma lógica já usada em
+// src/app/api/cron/prazos/route.ts (envioRealmenteTeveSucesso), criada por
+// causa do bug do dia 15/08: um envio que a Resend aceitou mas não
+// conseguiu despachar foi gravado como sucesso porque só checávamos o
+// "error" do send(). Essa rota (Envio Mensal) nunca tinha essa checagem —
+// investigação de 2026-11-19 (3 clientes não receberam o e-mail de
+// novembro mesmo com "enviado" no Controle de Envios) encontrou esse
+// mesmo buraco aqui, agravado pelo fato de resend_email_id nunca ter sido
+// gravado em documentos_clientes (0 de 690 registros históricos tinham o
+// id — tornando impossível checar o status real de qualquer envio feito
+// por esta rota até agora).
+const EVENTOS_FALHA_ENTREGA = new Set(['failed', 'bounced', 'canceled', 'complained', 'suppressed'])
+
+async function envioRealmenteTeveSucesso(resend: Resend, emailId: string | undefined): Promise<boolean> {
+  if (!emailId) return false
+
+  await new Promise((resolve) => setTimeout(resolve, 1500))
+
+  const { data, error } = await resend.emails.get(emailId)
+
+  if (error || !data) {
+    // Não deu pra confirmar o status (ex: instabilidade da própria API de
+    // consulta) — cai de volta pro comportamento anterior (assume sucesso)
+    // em vez de bloquear o envio por causa da checagem em si, mas fica
+    // registrado no log pra investigar se acontecer com frequência.
+    console.error(`[envio-mensal] Não foi possível confirmar status de entrega do e-mail ${emailId}:`, error)
+    return true
+  }
+
+  if (EVENTOS_FALHA_ENTREGA.has(data.last_event)) {
+    console.error(`[envio-mensal] E-mail ${emailId} foi aceito mas falhou no despacho (last_event=${data.last_event})`)
+    return false
+  }
+
+  return true
+}
+
 type ResultadoLotes = { processados: number; interrompidoPorTempo: boolean }
 
 // Roda `tarefa` em paralelo pra cada item da lista, em lotes de
@@ -235,7 +276,7 @@ export async function POST(request: Request) {
       itensInformativos,
     })
 
-    const { error: emailError } = await resend.emails.send({
+    const { data: emailData, error: emailError } = await resend.emails.send({
       from: 'naoresponda@opcaocontabilbsb.com.br',
       to: cliente.email,
       subject,
@@ -255,6 +296,18 @@ export async function POST(request: Request) {
       return
     }
 
+    if (!(await envioRealmenteTeveSucesso(resend, emailData?.id))) {
+      // Mesmo motivo do caso acima — mantém os temporários pro reenvio.
+      // Aqui o send() não deu erro síncrono, mas a Resend confirmou (via
+      // last_event) que o despacho falhou de verdade depois.
+      falhas.push({
+        clienteId: grupo.clienteId,
+        nomeCliente: cliente.nome_empresa,
+        motivo: 'A Resend aceitou o envio mas não confirmou a entrega (falha no despacho). Tente reenviar este cliente.',
+      })
+      return
+    }
+
     const agora = new Date().toISOString()
 
     const { error: insertError } = await supabaseAdmin.from('documentos_clientes').insert(
@@ -262,6 +315,7 @@ export async function POST(request: Request) {
         ...documento,
         enviado_por: user.id,
         enviado_em: agora,
+        resend_email_id: emailData?.id ?? null,
       }))
     )
 
