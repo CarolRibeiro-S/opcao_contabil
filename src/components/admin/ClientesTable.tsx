@@ -16,6 +16,7 @@ type Cliente = {
   regime_tributario: string | null
   profile_id: string | null
   acessoConfirmado: boolean
+  convite_falha_confirmada_em: string | null
 }
 
 const tipoBadge: Record<string, string> = {
@@ -45,11 +46,38 @@ const statusBadge: Record<string, string> = {
 // o convite foi enviado (ver ConvidarClientePortal.tsx); não significa que
 // a pessoa terminou de criar a senha. Só last_sign_in_at (via Auth Admin
 // API, ver admin/clientes/page.tsx) confirma isso de verdade.
-function BadgeAcessoPortal({ profileId, acessoConfirmado }: { profileId: string | null; acessoConfirmado: boolean }) {
+function BadgeAcessoPortal({
+  profileId,
+  acessoConfirmado,
+  conviteFalhaConfirmadaEm,
+}: {
+  profileId: string | null
+  acessoConfirmado: boolean
+  conviteFalhaConfirmadaEm: string | null
+}) {
   if (!profileId) {
     return (
       <span className="rounded-full border border-rule bg-paper-dim px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] text-navy-soft">
         Não convidado
+      </span>
+    )
+  }
+
+  // Prioridade sobre "Convite pendente": sem isso, uma falha de entrega
+  // confirmada (e-mail aceito pela Resend mas nunca despachado de
+  // verdade) ficaria indistinguível de "só ainda não deu tempo de abrir
+  // o e-mail" — exatamente o tipo de falha silenciosa que motivou essa
+  // correção (ver api/clientes/convidar/route.ts). Só mostra isso
+  // enquanto o cliente não tiver acesso confirmado — depois que ele já
+  // conseguiu entrar, uma falha de um reenvio posterior não é mais
+  // crítica.
+  if (conviteFalhaConfirmadaEm && !acessoConfirmado) {
+    return (
+      <span
+        className="rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.04em] text-red-700"
+        title={`A Resend não confirmou a entrega do código de acesso em ${new Date(conviteFalhaConfirmadaEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}. Use "Reenviar convite".`}
+      >
+        Convite falhou
       </span>
     )
   }
@@ -175,7 +203,11 @@ export default function ClientesTable({ clientes }: { clientes: Cliente[] }) {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <BadgeAcessoPortal profileId={cliente.profile_id} acessoConfirmado={cliente.acessoConfirmado} />
+                      <BadgeAcessoPortal
+                        profileId={cliente.profile_id}
+                        acessoConfirmado={cliente.acessoConfirmado}
+                        conviteFalhaConfirmadaEm={cliente.convite_falha_confirmada_em}
+                      />
                     </td>
                     <td className="px-4 py-3 text-charcoal">{cliente.responsavel ?? '—'}</td>
                     <td className="px-4 py-3 text-charcoal">{cliente.telefone ?? '—'}</td>

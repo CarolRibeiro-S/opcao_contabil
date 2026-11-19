@@ -50,7 +50,7 @@ export default async function ClientesPage() {
     supabase
       .from('clientes')
       .select(
-        'id, codigo_interno, cnpj_cpf, nome_empresa, tipo, segmento, status, responsavel, telefone, regime_tributario, profile_id'
+        'id, codigo_interno, cnpj_cpf, nome_empresa, tipo, segmento, status, responsavel, telefone, regime_tributario, profile_id, convite_falha_confirmada_em'
       )
       .order('nome_empresa', { ascending: true }),
     buscarUltimosLogins(),

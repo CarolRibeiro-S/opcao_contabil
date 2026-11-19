@@ -14,6 +14,51 @@ function linkVerificarCodigo(email: string) {
   return `${process.env.NEXT_PUBLIC_SITE_URL}/verificar-codigo?${params.toString()}`
 }
 
+// Mesmo padrão e mesmos campos de rastreio (convite_*, em clientes) já
+// usados em api/clientes/convidar/route.ts — essa rota também entrega
+// código de acesso (reenvio pro e-mail novo), então compartilha a mesma
+// lógica de confirmação pós-envio.
+const EVENTOS_FALHA_ENTREGA = new Set(['failed', 'bounced', 'canceled', 'complained', 'suppressed'])
+
+async function envioRealmenteTeveSucesso(resend: Resend, emailId: string | undefined): Promise<boolean> {
+  if (!emailId) return false
+
+  await new Promise((resolve) => setTimeout(resolve, 1500))
+
+  const { data, error } = await resend.emails.get(emailId)
+
+  if (error || !data) {
+    console.error(`[api/clientes/atualizar-email-acesso] Não foi possível confirmar status de entrega do e-mail ${emailId}:`, error)
+    return true
+  }
+
+  if (EVENTOS_FALHA_ENTREGA.has(data.last_event)) {
+    console.error(
+      `[api/clientes/atualizar-email-acesso] E-mail ${emailId} foi aceito mas falhou no despacho (last_event=${data.last_event})`
+    )
+    return false
+  }
+
+  return true
+}
+
+async function registrarTentativaConvite(
+  supabaseAdmin: ReturnType<typeof createAdminClient>,
+  clienteId: string,
+  resendEmailId: string | undefined,
+  entregaConfirmada: boolean
+) {
+  const agora = new Date().toISOString()
+  await supabaseAdmin
+    .from('clientes')
+    .update({
+      convite_resend_email_id: resendEmailId ?? null,
+      convite_enviado_em: agora,
+      convite_falha_confirmada_em: entregaConfirmada ? null : agora,
+    })
+    .eq('id', clienteId)
+}
+
 // Corrige o e-mail de ACESSO (auth.users, via profile_id) de um cliente que
 // já tem portal ativo — diferente de clientes.email (contato, editado no
 // formulário principal), que pode divergir da conta real (ver aviso em
@@ -243,7 +288,7 @@ export async function POST(request: Request) {
       linkVerificarCodigo: linkVerificarCodigo(novoEmail),
     })
 
-    const { error: emailError } = await resend.emails.send({
+    const { data: emailData, error: emailError } = await resend.emails.send({
       from: 'naoresponda@opcaocontabilbsb.com.br',
       to: novoEmail,
       subject,
@@ -252,9 +297,18 @@ export async function POST(request: Request) {
 
     if (emailError) {
       console.error('[api/clientes/atualizar-email-acesso] E-mail corrigido, mas falhou enviar o código:', emailError)
+      await registrarTentativaConvite(supabaseAdmin, clienteId, undefined, false)
       avisoReenvio = true
     } else {
-      reenviado = true
+      const entregaConfirmada = await envioRealmenteTeveSucesso(resend, emailData?.id)
+      await registrarTentativaConvite(supabaseAdmin, clienteId, emailData?.id, entregaConfirmada)
+
+      if (!entregaConfirmada) {
+        console.error('[api/clientes/atualizar-email-acesso] E-mail corrigido, mas a Resend não confirmou a entrega do código.')
+        avisoReenvio = true
+      } else {
+        reenviado = true
+      }
     }
   }
 
